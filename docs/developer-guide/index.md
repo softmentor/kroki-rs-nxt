@@ -25,6 +25,7 @@ If you are planning architecture changes, review **Architecture** and the **ADRs
 
 - **[Architecture](#kroki-rs-nxt.developer-guide.architecture)**: Hexagonal boundaries, domain model, and dependency rules.
 - **[Repository Structure](#kroki-rs-nxt.developer-guide.repository-structure)**: Folder responsibilities, workspace membership, and naming standards.
+- **[Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)**: Frozen request/response/error boundaries for Phase 3 migration work.
 - **[Design Decisions (ADRs)](#kroki-rs-nxt.developer-guide.adr.index)**: Canonical architectural decisions and their rationale.
 
 ### Development
@@ -37,6 +38,7 @@ If you are planning architecture changes, review **Architecture** and the **ADRs
 
 - **[Roadmap](#kroki-rs-nxt.developer-guide.roadmap.index)**: Phase goals, exit criteria, and sequencing.
 - **[Migration from kroki-rs](#kroki-rs-nxt.developer-guide.migration-from-kroki-rs)**: Planned capability and module transition strategy.
+- **[Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)**: Batch-by-batch migration plan, dependencies, and risk notes.
 
 ### Execution
 

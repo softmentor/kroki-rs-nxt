@@ -55,6 +55,38 @@ kroki-rs-nxt/
 └── README.md                       # Project overview
 ```
 
+## Structure Diagram
+
+```mermaid
+flowchart TB
+    ROOT["kroki-rs-nxt/"]
+    APPS["apps/"]
+    CORE["core/"]
+    ADAPTERS["adapters/"]
+    SHARED["shared/"]
+    DOCS["docs/"]
+
+    ROOT --> APPS
+    ROOT --> CORE
+    ROOT --> ADAPTERS
+    ROOT --> SHARED
+    ROOT --> DOCS
+
+    APPS --> CLI["cli"]
+    APPS --> SRV["server"]
+    APPS --> DSK["desktop (planned expansion)"]
+    APPS --> WEB["web-app (planned expansion)"]
+    APPS --> VSX["vscode-ext (planned expansion)"]
+    APPS --> MYST["myst-plugin (planned expansion)"]
+
+    CORE --> SDKR["sdk-rust"]
+    CORE --> PLUG["plugins"]
+    CORE --> SDKT["sdk-ts"]
+
+    ADAPTERS --> TR["transport"]
+    ADAPTERS --> ST["storage"]
+```
+
 ---
 
 ## Workspace Membership
@@ -124,6 +156,12 @@ Pattern: `@kroki/<name>`
 | `adapters/` | Infrastructure implementations (cache, transport, IO boundaries) | Rust |
 | `shared/` | Cross-surface assets, scripts, and design primitives | TS/CSS |
 | `docs/` | Product, architecture, and execution documentation | Markdown |
+
+Responsibility notes:
+- `apps/` coordinates user-facing workflows and calls adapter boundaries.
+- `adapters/` translates app IO to core contracts and returns transport-safe responses.
+- `core/` owns domain contracts and orchestration; it does not depend on apps/adapters.
+- `shared/` contains reusable front-end assets and cross-surface tooling, not domain logic.
 
 ---
 

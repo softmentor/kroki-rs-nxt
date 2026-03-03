@@ -16,8 +16,9 @@ pub mod services;
 pub mod utils;
 
 pub use error::{DiagramError, DiagramResult};
-pub use ports::DiagramProvider;
-pub use services::DiagramRegistry;
+pub use ports::{DiagramOptions, DiagramProvider, DiagramRequest, DiagramResponse, OutputFormat};
+pub use providers::EchoProvider;
+pub use services::{render_with_registry, DiagramRegistry};
 
 #[cfg(test)]
 mod tests {

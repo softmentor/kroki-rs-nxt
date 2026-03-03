@@ -43,7 +43,7 @@ num_cpus = "1.0"
 
 # Server
 axum = "0.8"
-tower = "0.5"
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
 
 # CLI

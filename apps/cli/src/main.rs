@@ -16,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
-    kroki_cli::handle_command(cli.command);
+    kroki_cli::handle_command(cli.command).await;
 
     Ok(())
 }

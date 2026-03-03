@@ -16,7 +16,7 @@ pub enum OutputFormat {
 }
 
 /// Request to generate a diagram.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DiagramRequest {
     pub source: String,
     pub diagram_type: String,
@@ -25,14 +25,14 @@ pub struct DiagramRequest {
 }
 
 /// Optional parameters for diagram generation.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DiagramOptions {
     pub font_urls: Vec<String>,
     pub timeout_ms: Option<u64>,
 }
 
 /// Response from diagram generation.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DiagramResponse {
     pub data: Vec<u8>,
     pub content_type: String,

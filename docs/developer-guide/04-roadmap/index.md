@@ -50,7 +50,7 @@ Deliverables:
 - GitHub Actions workflow generation
 - Validated across reference projects (rust-lib, node-ts, react, tauri, vscode-extension, python-ext)
 
-### Phase 2: kroki-rs-nxt Bootstrap (Current Phase)
+### Phase 2: kroki-rs-nxt Bootstrap
 
 **Goal**: Scaffold the monorepo, establish build infrastructure, create foundation crates.
 
@@ -61,16 +61,32 @@ Deliverables:
 - Comprehensive project documentation
 - Stub implementations that compile and pass baseline checks
 
+**Status: COMPLETE** (closed 2026-03-03)
+
 Exit Criteria:
-- [ ] `core/sdk-rust` compiles with domain trait definitions
-- [ ] `apps/cli` and `apps/server` have stub entry points
-- [ ] `cargo check` passes for the entire workspace
-- [ ] `dwf check:pr` passes (fmt, lint, build, test)
-- [ ] Documentation covers architecture, structure, workflow, and roadmap
+- [x] `core/sdk-rust` compiles with domain trait definitions
+- [x] `apps/cli` and `apps/server` have stub entry points
+- [x] `cargo check` passes for the entire workspace
+- [x] `dwf check:pr` passes (fmt, lint, build, test)
+- [x] Documentation covers architecture, structure, workflow, and roadmap
+
+Phase 2 Closure Tasks:
+- [x] Land one minimal vertical slice (request -> provider stub -> output contract) through core + adapter + app surface.
+- [x] Freeze and document v0.1.0-alpha core request/response/error contract boundaries for migration batches.
+- [x] Define explicit Phase 3 provider migration backlog (batch breakdown, dependency ordering, and risk notes).
+- [x] Add a formal Phase 2 closure update in execution logs with phase gate decision and owners.
+
+Phase 2 closure references:
+- [Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)
+- [Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)
+- [v0.1.0 Execution Tracker](#kroki-rs-nxt.developer-guide.execution.v010)
 
 ### Phase 3: Feature Migration by Capability Slice
 
 **Goal**: Migrate kroki-rs functionality into the new architecture in prioritized batches.
+
+Detailed batch plan:
+- [Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)
 
 | Batch | Scope | Key Components |
 |-------|-------|----------------|

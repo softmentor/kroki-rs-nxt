@@ -21,6 +21,7 @@ project:
           children:
             - file: developer-guide/02-design/architecture.md
             - file: developer-guide/02-design/repository-structure.md
+            - file: developer-guide/02-design/core-contracts.md
             - title: Design Decisions (ADRs)
               file: developer-guide/02-design/adr/index.md
               children:
@@ -39,6 +40,7 @@ project:
           children:
             - file: developer-guide/04-roadmap/index.md
             - file: developer-guide/04-roadmap/migration-from-kroki-rs.md
+            - file: developer-guide/04-roadmap/phase-3-backlog.md
         - title: Execution
           children:
             - file: developer-guide/06-execution/v010.md

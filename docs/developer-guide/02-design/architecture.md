@@ -9,21 +9,38 @@ label: kroki-rs-nxt.developer-guide.architecture
 
 kroki-rs-nxt follows the **Hexagonal Architecture** (Ports & Adapters) pattern. This separates pure domain logic from infrastructure concerns, enabling multiple interaction surfaces to share the same core engine.
 
-```
-                    ┌─────────────────────────────────┐
-                    │           Apps (Surfaces)       │
-                    │  CLI  │ Server │ Desktop │ VSCode │
-                    └───────────────┬──────────────────┘
-                                    │ depends on
-                    ┌───────────────▼──────────────────┐
-                    │          Adapters                │
-                    │   Storage  │  Transport          │
-                    └───────────────┬──────────────────┘
-                                    │ depends on
-                    ┌───────────────▼──────────────────┐
-                    │            Core                  │
-                    │  Domain Logic │ Traits │ SDKs    │
-                    └──────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph L3["Apps (Surfaces)"]
+        CLI["apps/cli"]
+        SRV["apps/server"]
+        DESK["apps/desktop (planned)"]
+        WEB["apps/web-app (planned)"]
+        VSX["apps/vscode-ext (planned)"]
+        MYST["apps/myst-plugin (planned)"]
+    end
+
+    subgraph L2["Adapters"]
+        TR["adapters/transport"]
+        ST["adapters/storage"]
+    end
+
+    subgraph L1["Core"]
+        CORE["core/sdk-rust"]
+        PLUG["core/plugins"]
+        TSSDK["core/sdk-ts (planned expansion)"]
+    end
+
+    CLI --> TR
+    SRV --> TR
+    DESK --> TR
+    WEB --> TR
+    VSX --> TR
+    MYST --> TR
+    TR --> CORE
+    ST --> CORE
+    TR --> PLUG
+    TSSDK --> CORE
 ```
 
 ### Dependency Direction Rule
@@ -52,6 +69,14 @@ Core MUST NEVER depend on an App or Adapter. Adapters MUST NEVER depend on an Ap
 ---
 
 ## Layers
+
+### Responsibility Summary
+
+| Layer | Owns | Does Not Own |
+|-------|------|--------------|
+| Apps | User entry points, app lifecycle, surface UX/API endpoints | Core business rules, provider internals |
+| Adapters | IO boundaries, DTO mapping, protocol translation, middleware | Domain policy decisions |
+| Core | Domain contracts, provider orchestration, business semantics | Transport concerns, app runtime concerns |
 
 ### Core (`core/`)
 
@@ -93,6 +118,28 @@ Cross-stack resources used by multiple surfaces.
 |-----------|---------|
 | `shared/design-system` | Shared Lit web components and CSS design tokens |
 | `shared/scripts` | Global CI/CD and build scripts |
+
+### Component and Interface View
+
+```mermaid
+flowchart LR
+    CLI["kroki-cli"]
+    SERVER["kroki-server"]
+    TRANSPORT["kroki-adapter-transport"]
+    STORAGE["kroki-adapter-storage"]
+    REGISTRY["DiagramRegistry"]
+    PROVIDER["DiagramProvider"]
+    ECHO["EchoProvider (Phase 2 stub)"]
+
+    CLI -->|"RenderRequestDto"| TRANSPORT
+    SERVER -->|"RenderRequestDto"| TRANSPORT
+    TRANSPORT -->|"DiagramRequest"| REGISTRY
+    REGISTRY -->|"resolve by diagram_type"| PROVIDER
+    ECHO -.implements.-> PROVIDER
+    TRANSPORT -->|"DiagramResponse -> RenderResponseDto"| CLI
+    SERVER -->|"HTTP JSON response"| SERVER
+    STORAGE -.planned cache boundary.-> REGISTRY
+```
 
 ---
 
@@ -177,6 +224,9 @@ pub enum DiagramError {
 }
 ```
 
+For the frozen Phase 2 baseline contract and change-control rules, see:
+- [Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)
+
 ---
 
 ## Cross-Cutting Concerns
@@ -212,16 +262,70 @@ pub enum DiagramError {
 
 TypeScript surfaces (desktop frontend, web-app, vscode-ext, myst-plugin) access core domain logic through Wasm bindings generated from `core/sdk-rust`.
 
-```
-core/sdk-rust (Rust) ──[wasm-pack]──► core/sdk-ts (TypeScript/Wasm)
-                                            │
-                          ┌────────────┬────────────┬────────────┬─────────────┐
-                          ▼            ▼            ▼            ▼
-                     apps/desktop  apps/web-app  apps/vscode-ext  apps/myst-plugin
-                     (Lit frontend) (Lit + TS)   (TypeScript)      (TypeScript)
+```mermaid
+flowchart LR
+    RUST["core/sdk-rust (Rust)"]
+    WASM["core/sdk-ts (TypeScript/Wasm)"]
+    DAPP["apps/desktop"]
+    WAPP["apps/web-app"]
+    VSC["apps/vscode-ext"]
+    MYSTAPP["apps/myst-plugin"]
+
+    RUST -->|"wasm-pack build"| WASM
+    WASM --> DAPP
+    WASM --> WAPP
+    WASM --> VSC
+    WASM --> MYSTAPP
 ```
 
 This ensures business logic is written once in Rust and shared across surfaces.
+
+---
+
+## Runtime Flow Diagrams
+
+### CLI Convert Flow (Phase 2 Vertical Slice)
+
+```mermaid
+sequenceDiagram
+    participant U as "Developer/User"
+    participant C as "apps/cli"
+    participant T as "adapters/transport"
+    participant R as "DiagramRegistry"
+    participant P as "EchoProvider"
+
+    U->>C: Run `kroki convert`
+    C->>T: Build `RenderRequestDto` and call `render_diagram`
+    T->>R: Convert to `DiagramRequest` and call `render_with_registry`
+    R->>R: Resolve provider by `diagram_type`
+    R->>P: `validate(source)`
+    P-->>R: Ok
+    R->>P: `generate(request)`
+    P-->>R: `DiagramResponse` (SVG payload)
+    R-->>T: `DiagramResponse`
+    T-->>C: `RenderResponseDto`
+    C-->>U: Log/emit render result metadata
+```
+
+### Server Render Flow (`POST /render`)
+
+```mermaid
+sequenceDiagram
+    participant Client as "HTTP Client"
+    participant S as "apps/server (/render)"
+    participant T as "adapters/transport"
+    participant R as "DiagramRegistry"
+    participant P as "EchoProvider"
+
+    Client->>S: POST /render (JSON)
+    S->>T: `render_diagram(registry, RenderRequestDto)`
+    T->>R: `render_with_registry(DiagramRequest)`
+    R->>P: validate + generate
+    P-->>R: `DiagramResponse`
+    R-->>T: `DiagramResponse`
+    T-->>S: `RenderResponseDto`
+    S-->>Client: 200 + JSON payload
+```
 
 ---
 

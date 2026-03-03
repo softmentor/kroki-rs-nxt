@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::ports::DiagramProvider;
+use crate::error::{DiagramError, DiagramResult};
+use crate::ports::{DiagramProvider, DiagramRequest, DiagramResponse};
 
 /// Central registry for diagram provider discovery and lookup.
 pub struct DiagramRegistry {
@@ -40,4 +41,17 @@ impl Default for DiagramRegistry {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Render a diagram by resolving the provider from registry and invoking it.
+pub async fn render_with_registry(
+    registry: &DiagramRegistry,
+    request: &DiagramRequest,
+) -> DiagramResult<DiagramResponse> {
+    let provider = registry
+        .get(&request.diagram_type)
+        .ok_or_else(|| DiagramError::ToolNotFound(request.diagram_type.clone()))?;
+
+    provider.validate(&request.source)?;
+    provider.generate(request).await
 }
