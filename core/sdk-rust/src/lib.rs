@@ -18,3 +18,14 @@ pub mod utils;
 pub use error::{DiagramError, DiagramResult};
 pub use ports::DiagramProvider;
 pub use services::DiagramRegistry;
+
+#[cfg(test)]
+mod tests {
+    use super::DiagramRegistry;
+
+    #[test]
+    fn unit_registry_starts_empty() {
+        let registry = DiagramRegistry::new();
+        assert!(registry.known_types().is_empty());
+    }
+}

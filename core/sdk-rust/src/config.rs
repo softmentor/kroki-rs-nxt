@@ -2,4 +2,4 @@
 //!
 //! Runtime configuration loaded from `kroki.toml` with environment variable overrides.
 
-// Placeholder — will be populated during Phase 3 feature migration.
+// Bootstrap baseline config module; full runtime model is planned for Phase 3.

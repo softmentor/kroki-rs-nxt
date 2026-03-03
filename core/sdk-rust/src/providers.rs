@@ -5,4 +5,4 @@
 //! - Browser: evaluates JS in headless Chrome (Mermaid, BPMN)
 //! - Pipeline: multi-step conversion chains (Vega-Lite → Vega → SVG)
 //!
-//! Placeholder module — providers will be implemented during Phase 3 feature migration.
+//! Bootstrap baseline provider module; concrete providers are planned for Phase 3.

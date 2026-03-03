@@ -10,7 +10,7 @@ image = "kroki-rs-nxt-ci"
 engine = "auto"
 
 [targets]
-pr = ["fmt:check", "lint:static", "build:debug", "test:unit"]
+pr = ["fmt:check", "lint:static", "build:debug", "test:unit", "test:integration"]
 main = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke"]
 release = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke", "package:artifact"]
 
