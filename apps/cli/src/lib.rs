@@ -323,7 +323,6 @@ pub async fn handle_command(command: Option<Commands>) {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
     #[tokio::test]
     async fn unit_convert_bootstrap_returns_svg_contract() {
@@ -350,7 +349,7 @@ mod tests {
             source: Some("graph TD; A-->B;".to_string()),
             input: None,
             format: super::CliOutputFormat::Svg,
-            output: Some(PathBuf::from("should-not-be-created.svg")),
+            output: Some(std::env::temp_dir().join("should-not-be-created.svg")),
         })
         .await;
         if which::which("mmdc").is_ok() {
