@@ -1,5 +1,31 @@
 {
   "name": "kroki-rs-nxt",
   "private": true,
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "core/sdk-ts",
+    "apps/desktop/src",
+    "apps/myst-plugin",
+    "apps/vscode-ext",
+    "apps/web-app",
+    "shared/design-system"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:debug": "npm run build --workspaces --if-present",
+    "build:release": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:static": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:unit": "npm run test --workspaces --if-present",
+    "test:integration": "npm run test --workspaces --if-present",
+    "fmt:check": "npm run fmt:check --workspaces --if-present",
+    "fmt:fix": "npm run fmt:fix --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
+    "eslint": "^9.21.0",
+    "typescript": "^5.8.2"
+  }
 }
