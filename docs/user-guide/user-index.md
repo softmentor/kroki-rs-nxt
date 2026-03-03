@@ -23,6 +23,7 @@ Welcome to the kroki-rs-nxt user guide. This section covers everything you need 
 | **Desktop** | `pnpm tauri dev` | Native desktop app (Phase 4) |
 | **Web** | `pnpm --filter @kroki/web-app dev` | Web dashboard (Phase 4) |
 | **VS Code** | Extension marketplace | Editor integration (Phase 4) |
+| **MyST Plugin** | `pnpm --filter @kroki/myst-plugin dev` | Documentation integration surface (Planned) |
 
 ### Diagram Types
 

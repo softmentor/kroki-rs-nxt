@@ -14,7 +14,7 @@ Multi-Surface Architecture
 # One Core. Many Surfaces.
 # Native Rust Performance.
 
-Kroki-rs-nxt is the next-generation diagram platform. A hexagonal architecture with a shared Rust core powering CLI, Server, Desktop, Web, and VS Code surfaces.
+Kroki-rs-nxt is the next-generation diagram platform. A hexagonal architecture with a shared Rust core powering CLI, Server, Desktop, Web, VS Code, and MyST Plugin surfaces.
 
 ```{image} assets/images/k-rs-landing.jpeg
 :class: only-light
@@ -35,7 +35,7 @@ Managing diagram rendering across different environments and interfaces shouldn'
 
 - **Core**: Pure Rust domain logic — providers, registry, validation, caching
 - **Adapters**: Pluggable infrastructure — storage, HTTP transport, IPC
-- **Surfaces**: CLI (Ratatui TUI), Server (Axum), Desktop (Tauri), Web (Lit), VS Code
+- **Surfaces**: CLI (Ratatui TUI), Server (Axum), Desktop (Tauri), Web (Lit), VS Code, MyST Plugin
 
 ---
 

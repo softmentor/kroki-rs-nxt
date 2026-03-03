@@ -17,7 +17,7 @@ kroki-rs used ad-hoc Makefile targets for build orchestration. As a polyglot mon
 
 Use **devflow v0.2.0** (`dwf`) as the workflow orchestration platform from the project's inception. Configure via `devflow.toml` with both Rust and Node extensions.
 
-Canonical commands (`dwf fmt:check`, `dwf lint:static`, `dwf build:debug`, `dwf test:unit`, `dwf verify`) provide a stable developer interface regardless of underlying toolchain.
+Canonical commands (`dwf fmt:check`, `dwf lint:static`, `dwf build:debug`, `dwf test:unit`, `dwf check:pr`) provide a stable developer interface regardless of underlying toolchain.
 
 ## Consequences
 

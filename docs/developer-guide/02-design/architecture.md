@@ -2,6 +2,7 @@
 title: Architecture Overview
 label: kroki-rs-nxt.developer-guide.architecture
 ---
+
 # Architecture Overview
 
 ## Design Philosophy
@@ -10,18 +11,18 @@ kroki-rs-nxt follows the **Hexagonal Architecture** (Ports & Adapters) pattern. 
 
 ```
                     ┌─────────────────────────────────┐
-                    │           Apps (Surfaces)         │
+                    │           Apps (Surfaces)       │
                     │  CLI  │ Server │ Desktop │ VSCode │
                     └───────────────┬──────────────────┘
                                     │ depends on
                     ┌───────────────▼──────────────────┐
-                    │          Adapters                  │
-                    │   Storage  │  Transport            │
+                    │          Adapters                │
+                    │   Storage  │  Transport          │
                     └───────────────┬──────────────────┘
                                     │ depends on
                     ┌───────────────▼──────────────────┐
-                    │            Core                    │
-                    │  Domain Logic │ Traits │ SDKs      │
+                    │            Core                  │
+                    │  Domain Logic │ Traits │ SDKs    │
                     └──────────────────────────────────┘
 ```
 
@@ -29,7 +30,24 @@ kroki-rs-nxt follows the **Hexagonal Architecture** (Ports & Adapters) pattern. 
 
 **`apps → adapters → core`**
 
-Core MUST NEVER depend on an App or Adapter. Adapters MUST NEVER depend on an App. This is enforced by the Cargo workspace dependency graph.
+Core MUST NEVER depend on an App or Adapter. Adapters MUST NEVER depend on an App.
+
+---
+
+## Architecture State (Current vs Target)
+
+### Current Repository State (Phase 2 Bootstrap)
+
+- `core/sdk-rust` is scaffolded with base modules (`ports`, `providers`, `services`, `config`, `error`, `utils`).
+- `adapters/storage` and `adapters/transport` are scaffolded as bootstrap baseline crates.
+- `apps/cli` and `apps/server` compile with placeholder runtime entry points.
+- `apps/desktop`, `apps/web-app`, and `apps/vscode-ext` have bootstrap baseline packages and are ready for active feature implementation.
+
+### Target State (Phases 3-5)
+
+- Provider implementations are migrated in capability slices (Command, Browser, Pipeline, Plugin).
+- Adapters become production-ready with HTTP handlers, middleware, caching integration, and observability.
+- Additional surfaces (Desktop, Web, VS Code) are activated and consume shared core logic through `core/sdk-ts`.
 
 ---
 
@@ -62,9 +80,10 @@ Entry points that compose Core and Adapters into runnable applications.
 |-----|-------|-------------|
 | `apps/cli` (`kroki-cli`) | Rust (Ratatui TUI) | Interactive terminal UI for diagram conversion |
 | `apps/server` (`kroki-server`) | Rust (Axum) | HTTP API server with auth, rate limiting, metrics |
-| `apps/desktop` | Tauri (Rust + Lit/TS) | Native desktop app with embedded web UI |
-| `apps/vscode-ext` | TypeScript | VS Code extension for in-editor diagram preview |
-| `apps/web-app` | Lit + TypeScript | Standalone web dashboard |
+| `apps/desktop` | Tauri (Rust + Lit/TS) | Native desktop app with embedded web UI (planned) |
+| `apps/vscode-ext` | TypeScript | VS Code extension for in-editor diagram preview (planned) |
+| `apps/web-app` | Lit + TypeScript | Standalone web dashboard (planned) |
+| `apps/myst-plugin` | TypeScript | MyST plugin surface for documentation-native rendering workflows (planned) |
 
 ### Shared (`shared/`)
 
@@ -79,7 +98,7 @@ Cross-stack resources used by multiple surfaces.
 
 ## Core Domain Model
 
-The domain model is extracted from kroki-rs and refined for the hexagonal architecture.
+The domain model is extracted from kroki-rs and refined for hexagonal architecture boundaries.
 
 ### DiagramProvider (Port)
 
@@ -191,29 +210,30 @@ pub enum DiagramError {
 
 ## Wasm/FFI Bridge (`core/sdk-ts`)
 
-TypeScript surfaces (desktop frontend, web-app, vscode-ext) access core domain logic through Wasm bindings generated from `core/sdk-rust`.
+TypeScript surfaces (desktop frontend, web-app, vscode-ext, myst-plugin) access core domain logic through Wasm bindings generated from `core/sdk-rust`.
 
 ```
 core/sdk-rust (Rust) ──[wasm-pack]──► core/sdk-ts (TypeScript/Wasm)
                                             │
-                              ┌─────────────┼─────────────┐
-                              ▼             ▼             ▼
-                         apps/desktop  apps/web-app  apps/vscode-ext
-                         (Lit frontend) (Lit + TS)   (TypeScript)
+                          ┌────────────┬────────────┬────────────┬─────────────┐
+                          ▼            ▼            ▼            ▼
+                     apps/desktop  apps/web-app  apps/vscode-ext  apps/myst-plugin
+                     (Lit frontend) (Lit + TS)   (TypeScript)      (TypeScript)
 ```
 
-This ensures business logic is written once in Rust and shared across all surfaces.
+This ensures business logic is written once in Rust and shared across surfaces.
 
 ---
 
 ## Architectural Decision Records
 
-Key decisions will be tracked in `docs/adr/` as the project evolves:
+Key decisions are documented in [Design Decisions (ADRs)](#kroki-rs-nxt.developer-guide.adr.index):
 
 | ADR | Decision |
 |-----|----------|
-| ADR-001 | Hexagonal architecture with apps/adapters/core layering |
-| ADR-002 | Single monorepo for all surfaces (split only when evidence justifies) |
-| ADR-003 | devflow v0.2.0 as workflow orchestration from day one |
-| ADR-004 | Wasm bridge for Rust-to-TypeScript shared logic |
-| ADR-005 | Ratatui for CLI TUI (upgrade from clap-only) |
+| [ADR-001](#kroki-rs-nxt.adr.0001) | Hexagonal architecture with apps/adapters/core layering |
+| [ADR-002](#kroki-rs-nxt.adr.0002) | Single monorepo for all surfaces (split only when evidence justifies) |
+| [ADR-003](#kroki-rs-nxt.adr.0003) | devflow v0.2.0 as workflow orchestration from day one |
+| [ADR-004](#kroki-rs-nxt.adr.0004) | Wasm bridge for Rust-to-TypeScript shared logic |
+| [ADR-005](#kroki-rs-nxt.adr.0005) | Ratatui for CLI TUI (upgrade from clap-only) |
+| [ADR-006](#kroki-rs-nxt.adr.0006) | Test structure and taxonomy for maintainable multi-surface development |

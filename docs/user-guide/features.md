@@ -50,6 +50,14 @@ In-editor diagram preview and generation directly within VS Code.
 - **Location**: `apps/vscode-ext/`
 - **Status**: Phase 4
 
+### MyST Plugin
+
+Documentation-native plugin surface for MyST-based workflows and live diagram rendering inside authoring pipelines.
+
+- **Stack**: TypeScript
+- **Location**: `apps/myst-plugin/`
+- **Status**: Planned
+
 ---
 
 ## Diagram Providers
@@ -102,4 +110,4 @@ User-defined external tools via subprocess protocol. Configure custom diagram to
 
 ## Shared Core via Wasm
 
-TypeScript surfaces (Desktop UI, Web App, VS Code) access the Rust domain logic through WebAssembly bindings generated from `core/sdk-ts`. This ensures business logic is written once and shared across all surfaces.
+TypeScript surfaces (Desktop UI, Web App, VS Code, MyST Plugin) access the Rust domain logic through WebAssembly bindings generated from `core/sdk-ts`. This ensures business logic is written once and shared across all surfaces.

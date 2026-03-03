@@ -2,6 +2,7 @@
 title: Migration from kroki-rs
 label: kroki-rs-nxt.developer-guide.migration-from-kroki-rs
 ---
+
 # Migration from kroki-rs
 
 ## Overview
@@ -15,6 +16,14 @@ The rewrite:
 - Uses devflow for workflow orchestration instead of ad-hoc Makefile targets
 
 kroki-rs will remain in **maintenance mode** (bug fixes and critical releases only) during the transition.
+
+---
+
+## Migration Semantics
+
+- This document defines the **target migration map**, not only what is already implemented.
+- During Phase 2, many mapped destination paths are still bootstrap baseline targets and may not yet exist as concrete files.
+- Progress against this map is tracked in the execution documents under `docs/developer-guide/06-execution/`.
 
 ---
 
@@ -50,7 +59,7 @@ The following patterns and domain knowledge from kroki-rs are leveraged in the n
 
 ---
 
-## Module Mapping
+## Module Mapping (Target Layout)
 
 Where kroki-rs code maps to in kroki-rs-nxt:
 

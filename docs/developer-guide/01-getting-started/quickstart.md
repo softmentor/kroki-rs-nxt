@@ -53,7 +53,7 @@ cargo test -p kroki-core
 
 ```bash
 # Run full PR verification gate
-dwf verify
+dwf check:pr
 ```
 
 This runs all checks in the `pr` target: `fmt:check`, `lint:static`, `build:debug`, `test:unit`.

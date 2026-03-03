@@ -20,23 +20,26 @@ Thank you for your interest in contributing to kroki-rs-nxt.
 ## Workflow
 
 1. Fork or branch from `dev`
-2. Make changes following the [coding conventions](#architecture-rules)
-3. Run `dwf verify` to ensure all checks pass
+2. Make changes following the [coding conventions and standards](#kroki-rs-nxt.developer-guide.coding-conventions)
+3. Run `dwf check:pr` to ensure all checks pass
 4. Submit a pull request targeting `dev`
 
-## Architecture Rules
+## Architecture Rules (Summary)
 
 - **Dependency direction**: `apps -> adapters -> core` (never the reverse)
 - Core must have zero infrastructure dependencies
 - Environment-specific configs stay in their app folder
 - Shared Rust/TS logic goes through `core/sdk-ts` (Wasm)
 
+For full standards and static analysis tooling by stack, see:
+- [Coding Conventions and Standards](#kroki-rs-nxt.developer-guide.coding-conventions)
+
 ## Quality Gates
 
 Every PR must pass:
 
 - `fmt:check` — code formatting
-- `lint:static` — static analysis (clippy, eslint)
+- `lint:static` — static analysis (clippy, eslint, tsc)
 - `build:debug` — workspace compilation
 - `test:unit` — unit tests
 

@@ -11,6 +11,7 @@ kroki-rs-nxt is a complete rewrite of [kroki-rs](https://github.com/softmentor/k
 - **Desktop** - Native app (Tauri + Lit)
 - **VS Code** - Editor extension (TypeScript)
 - **Web App** - Browser dashboard (Lit + TypeScript)
+- **MyST Plugin** - Documentation integration plugin (TypeScript)
 
 All surfaces share a single core domain engine that handles diagram generation, validation, caching, and plugin management.
 
@@ -49,7 +50,7 @@ dwf build:debug
 dwf test:unit
 
 # Full PR verification
-dwf verify
+dwf check:pr
 ```
 
 ### Project Commands
@@ -61,7 +62,7 @@ dwf verify
 | `dwf lint:static` | Run static analysis |
 | `dwf build:debug` | Debug build |
 | `dwf test:unit` | Run unit tests |
-| `dwf verify` | Full PR verification gate |
+| `dwf check:pr` | Full PR verification gate |
 
 ## Documentation
 

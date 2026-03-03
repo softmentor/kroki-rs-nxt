@@ -2,6 +2,7 @@
 title: Roadmap
 label: kroki-rs-nxt.developer-guide.roadmap.index
 ---
+
 # Project Roadmap & Migration Plan
 
 ## Vision
@@ -13,6 +14,16 @@ This is **not** a backward-compatible migration. kroki-rs-nxt is a fresh codebas
 ## Tooling Foundation
 
 kroki-rs-nxt uses **devflow v0.2.0** (`dwf`) as its workflow orchestration platform from day one. Gaps and improvements discovered during kroki-rs-nxt development will feed back into **devflow v0.3.0**.
+
+---
+
+## Execution Tracking
+
+Roadmap phases define the plan. Day-to-day delivery status is maintained in **Execution** docs:
+
+- [v0.1.0 Execution Tracker](#kroki-rs-nxt.developer-guide.execution.v010)
+
+Use execution docs to track concrete tasks, ownership, and readiness for phase gates.
 
 ---
 
@@ -54,7 +65,7 @@ Exit Criteria:
 - [ ] `core/sdk-rust` compiles with domain trait definitions
 - [ ] `apps/cli` and `apps/server` have stub entry points
 - [ ] `cargo check` passes for the entire workspace
-- [ ] `dwf verify` passes (fmt, lint, build, test)
+- [ ] `dwf check:pr` passes (fmt, lint, build, test)
 - [ ] Documentation covers architecture, structure, workflow, and roadmap
 
 ### Phase 3: Feature Migration by Capability Slice
@@ -87,6 +98,7 @@ Deliverables:
 - **Desktop app** (`apps/desktop`): Tauri app with Rust backend + Lit frontend
 - **Web dashboard** (`apps/web-app`): Lit + TypeScript web UI
 - **VS Code extension** (`apps/vscode-ext`): TypeScript extension with diagram preview
+- **MyST plugin** (`apps/myst-plugin`): TypeScript plugin surface for docs-native rendering workflows
 - **TypeScript SDK** (`core/sdk-ts`): Wasm/FFI bindings exposing core logic to TS surfaces
 - **Design system** (`shared/design-system`): Shared Lit components and CSS tokens
 
@@ -94,6 +106,7 @@ Exit Criteria:
 - [ ] Desktop app renders diagrams via Tauri commands
 - [ ] Web dashboard provides interactive diagram editing
 - [ ] VS Code extension provides in-editor diagram preview
+- [ ] MyST plugin provides rendering integration for MyST documentation workflows
 - [ ] `core/sdk-ts` exposes key domain operations via Wasm
 
 ### Phase 5: Stabilization & Release

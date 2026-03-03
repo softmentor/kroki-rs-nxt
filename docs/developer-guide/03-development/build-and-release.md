@@ -13,6 +13,13 @@ kroki-rs-nxt is a polyglot monorepo managed by two workspace systems:
 
 **devflow** (`dwf`) provides the unified command surface across both stacks.
 
+## Current Phase Notes
+
+As of Phase 2 bootstrap:
+- Build and test topology is defined in `devflow.toml`.
+- Several runtime surfaces are still bootstrap-baseline and not yet feature complete.
+- Release process is documented as the target model and will be operationalized as implementation matures.
+
 ---
 
 ## devflow Integration
@@ -32,7 +39,7 @@ kroki-rs-nxt is a polyglot monorepo managed by two workspace systems:
 | `dwf test:unit` | Run unit tests |
 | `dwf test:integration` | Run integration tests |
 | `dwf test:smoke` | Run smoke tests |
-| `dwf verify` | Full PR verification gate |
+| `dwf check:pr` | Full PR verification gate (includes integration tests) |
 | `dwf ci:generate` | Generate GitHub Actions workflow |
 | `dwf ci:check` | Validate committed CI workflow |
 
@@ -40,7 +47,7 @@ kroki-rs-nxt is a polyglot monorepo managed by two workspace systems:
 
 ```toml
 [targets]
-pr = ["fmt:check", "lint:static", "build:debug", "test:unit"]
+pr = ["fmt:check", "lint:static", "build:debug", "test:unit", "test:integration"]
 main = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke"]
 release = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke", "package:artifact"]
 ```
@@ -174,7 +181,7 @@ prep ──► build ──┬──► fmt-check
 
 | Tier | Trigger | Checks |
 |------|---------|--------|
-| **PR minimal gate** | Pull request | fmt, lint, build, test:unit |
+| **PR minimal gate** | Pull request | fmt, lint, build, test:unit, test:integration |
 | **Full verification** | Push to main/dev | fmt, lint, build, test:unit, test:integration, test:smoke |
 | **Release** | Tag | Full verification + package:artifact |
 
@@ -182,7 +189,9 @@ prep ──► build ──┬──► fmt-check
 
 ## Release Pipeline
 
-1. `dwf verify` passes all gates
+This is the intended release flow for `v0.1.0` and later milestones.
+
+1. `dwf check:pr` passes all PR gates
 2. Version bump in workspace `Cargo.toml` and `package.json`
 3. `dwf package:artifact` creates release binaries
 4. Tag with `git tag v<version>`

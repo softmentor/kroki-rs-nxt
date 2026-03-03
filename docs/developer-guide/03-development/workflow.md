@@ -4,6 +4,18 @@ label: kroki-rs-nxt.developer-guide.workflow
 ---
 # Development Workflow
 
+## Workflow Intent
+
+This guide defines how to work in the repository today (Phase 2 bootstrap) while staying aligned with the target operating model for later phases.
+
+Use this document for:
+- local setup and validation
+- daily development loop
+- PR readiness
+- troubleshooting and escalation paths
+
+---
+
 ## Prerequisites
 
 | Tool | Version | Purpose |
@@ -30,6 +42,10 @@ dwf build:debug
 # Run unit tests
 dwf test:unit
 ```
+
+Expected current behavior:
+- Rust workspace crates should compile and test in bootstrap baseline mode.
+- Some surfaces and provider paths are placeholders and will be implemented in later phases.
 
 ---
 
@@ -67,10 +83,16 @@ cargo test -p kroki-core
 
 ```bash
 # Run full PR verification gate
-dwf verify
+dwf check:pr
 ```
 
-This executes all checks in the `pr` target profile: `fmt:check`, `lint:static`, `build:debug`, `test:unit`.
+This executes all checks in the `pr` target profile: `fmt:check`, `lint:static`, `build:debug`, `test:unit`, `test:integration`.
+
+PR checklist:
+- Keep crate boundaries aligned with `apps -> adapters -> core`.
+- Avoid introducing root-level ad-hoc scripts when `devflow.toml` can own the workflow.
+- Update docs when architecture, commands, or structure change.
+- Keep tests aligned with the repository test strategy in [Testing Strategy](#kroki-rs-nxt.developer-guide.testing-strategy).
 
 ---
 
@@ -142,6 +164,7 @@ registry.register("my-tool", Arc::new(MyToolProvider::new(config)));
 3. **Add tests** in `core/sdk-rust/tests/providers/`:
    - Unit test: validate + generate with mock input
    - Integration test: actual tool invocation (if tool is available)
+   - Keep test fixtures/config in `tests/fixtures/` and expected artifacts in `tests/resources/`
 
 4. **Update config** to include tool-specific settings in `kroki.toml`
 
@@ -201,7 +224,7 @@ cargo build -vv -p kroki-core
 
 ```bash
 # Debug output
-RUST_LOG=devflow=debug dwf verify
+RUST_LOG=devflow=debug dwf check:pr
 
 # Check devflow config
 dwf setup:doctor
