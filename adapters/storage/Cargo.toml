@@ -1,0 +1,18 @@
+[package]
+name = "kroki-adapter-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Storage adapter implementations (filesystem cache, future DB backends)"
+
+[dependencies]
+kroki-core = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+tempfile = { workspace = true }
+walkdir = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }

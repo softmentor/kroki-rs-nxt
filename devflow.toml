@@ -1,0 +1,45 @@
+[project]
+name = "kroki-rs-nxt"
+stack = ["rust", "node"]
+
+[runtime]
+profile = "host"
+
+[container]
+image = "kroki-rs-nxt-ci"
+engine = "auto"
+
+[targets]
+pr = ["fmt:check", "lint:static", "build:debug", "test:unit", "test:integration"]
+main = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke"]
+release = ["fmt:check", "lint:static", "build:release", "test:unit", "test:integration", "test:smoke", "package:artifact"]
+
+[extensions.rust]
+source = "builtin"
+version = "^0.2"
+api_version = 1
+required = true
+capabilities = [
+  "setup",
+  "fmt:check",
+  "fmt:fix",
+  "lint:static",
+  "build:debug",
+  "build:release",
+  "test:unit",
+  "test:integration",
+  "test:smoke",
+  "package:artifact",
+  "check",
+  "ci:generate",
+  "ci:check",
+]
+
+[extensions.node]
+source = "builtin"
+required = false
+
+[extensions.host_deps]
+source = "path"
+path = "./tools/devflow-ext-host-deps.mjs"
+required = true

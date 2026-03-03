@@ -1,0 +1,65 @@
+[workspace]
+resolver = "2"
+members = [
+  "core/sdk-rust",
+  "core/plugins",
+  "adapters/storage",
+  "adapters/transport",
+  "apps/cli",
+  "apps/server",
+  # "apps/desktop/src-tauri",  # Phase 4: Uncomment when Tauri is added
+]
+
+[workspace.package]
+version = "0.1.0-alpha.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/softmentor/kroki-rs-nxt"
+
+[workspace.dependencies]
+# Core
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
+toml = "0.8"
+async-trait = "0.1"
+time = { version = "=0.3.36", features = ["macros", "local-offset"] }
+
+# Domain-specific
+which = "7.0"
+base64 = "0.22"
+flate2 = "1.0"
+sha2 = "0.10"
+hex = "0.4"
+resvg = { version = "0.42.0", default-features = false, features = ["text", "system-fonts"] }
+image = { version = "0.25", default-features = false, features = ["webp", "png"] }
+tempfile = "3.10"
+walkdir = "2.4"
+dashmap = "6"
+num_cpus = "1.0"
+headless_chrome = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# Server
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.5"
+ratatui = "0.29"
+
+# Observability
+metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
+
+# Workspace crates (internal)
+kroki-core = { path = "core/sdk-rust" }
+kroki-plugins = { path = "core/plugins" }
+kroki-adapter-storage = { path = "adapters/storage" }
+kroki-adapter-transport = { path = "adapters/transport" }

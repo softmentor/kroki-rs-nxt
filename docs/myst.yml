@@ -1,0 +1,35 @@
+version: 1
+extends:
+  - toc.yml
+  - abbreviations.yml
+
+project:
+  id: kroki-rs-nxt
+  title: Kroki-rs-nxt
+  description: Next-generation, multi-surface diagram platform built with Rust.
+  authors:
+    - name: Soft Mentor
+  github: https://github.com/softmentor/kroki-rs-nxt
+
+site:
+  template: book-theme
+  nav:
+    - title: Home
+      url: /index
+    - title: User Guide
+      url: /user-guide/user-index
+    - title: Developer Guide
+      url: /developer-guide/index
+    - title: Source Documentation
+      url: https://softmentor.github.io/kroki-rs-nxt/rustdoc/kroki_core/index.html
+  options:
+    url: https://softmentor.github.io/kroki-rs-nxt/
+    folders: false
+    hide_authors: true
+    logo_text: Kroki-rs-nxt V0.1.0-alpha.0
+    logo: assets/images/k-rs-icon.png
+    logo_dark: assets/images/k-rs-icon.png
+    favicon: assets/images/k-rs-icon.png
+    style: assets/css/kroki-rs-nxt.css
+  parts:
+    footer: assets/parts/footer.md

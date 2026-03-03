@@ -1,0 +1,56 @@
+version: 1
+project:
+  toc:
+    - file: index.md
+    - title: Getting Started
+      file: user-guide/getting-started.md
+    - title: User Guide
+      file: user-guide/user-index.md
+      children:
+        - file: user-guide/features.md
+        - file: user-guide/configuration.md
+    - title: Developer Guide
+      file: developer-guide/index.md
+      children:
+        - title: Getting Started
+          children:
+            - file: developer-guide/01-getting-started/quickstart.md
+            - file: developer-guide/01-getting-started/contributing.md
+            - file: developer-guide/01-getting-started/coding-conventions.md
+        - title: Design
+          children:
+            - file: developer-guide/02-design/architecture.md
+            - file: developer-guide/02-design/style-guide.md
+            - file: developer-guide/02-design/repository-structure.md
+            - file: developer-guide/02-design/core-contracts.md
+            - title: Design Decisions (ADRs)
+              file: developer-guide/02-design/adr/index.md
+              children:
+                - file: developer-guide/02-design/adr/adr-0001-hexagonal-architecture.md
+                - file: developer-guide/02-design/adr/adr-0002-monorepo-strategy.md
+                - file: developer-guide/02-design/adr/adr-0003-devflow-integration.md
+                - file: developer-guide/02-design/adr/adr-0004-wasm-bridge.md
+                - file: developer-guide/02-design/adr/adr-0005-ratatui-cli.md
+                - file: developer-guide/02-design/adr/adr-0006-test-structure-and-taxonomy.md
+        - title: Development
+          children:
+            - file: developer-guide/03-development/workflow.md
+            - file: developer-guide/03-development/build-and-release.md
+            - file: developer-guide/03-development/testing-strategy.md
+        - title: Roadmap
+          children:
+            - file: developer-guide/04-roadmap/index.md
+            - file: developer-guide/04-roadmap/migration-from-kroki-rs.md
+            - file: developer-guide/04-roadmap/phase-3-backlog.md
+        - title: Execution
+          children:
+            - file: developer-guide/06-execution/v010.md
+        - title: Resources
+          children:
+            - file: developer-guide/10-resources/references.md
+    - title: Reference
+      file: reference.md
+      children:
+        - file: glossary.md
+        - title: Source Code Documentation
+          url: https://softmentor.github.io/kroki-rs-nxt/rustdoc/kroki_core/index.html

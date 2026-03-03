@@ -1,0 +1,23 @@
+---
+title: Glossary
+label: kroki-rs-nxt.glossary
+---
+
+# Glossary
+
+| Term | Definition |
+|------|------------|
+| ADR | Architecture Decision Record. |
+| API | Application Programming Interface. |
+| CDP | Chrome DevTools Protocol. |
+| CLI | Command Line Interface. |
+| FFI | Foreign Function Interface. |
+| HTTP | Hypertext Transfer Protocol. |
+| IPC | Inter-Process Communication. |
+| RFC | Request for Comments. |
+| SDK | Software Development Kit. |
+| SVG | Scalable Vector Graphics. |
+| PNG | Portable Network Graphics. |
+| TUI | Terminal User Interface. |
+| Wasm | WebAssembly. |
+| WebP | Web Picture format. |

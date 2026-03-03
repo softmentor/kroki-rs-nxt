@@ -1,0 +1,158 @@
+.footer-grid {
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding-top: 3rem;
+    margin-top: 5rem;
+    font-size: 0.85rem;
+    color: #555;
+    line-height: 1.6;
+}
+
+.footer-grid strong {
+    color: #222;
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.footer-grid ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-grid li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-grid a {
+    text-decoration: none;
+    color: #444;
+    transition: color 0.2s ease;
+}
+
+.footer-grid a:hover {
+    color: #000;
+}
+
+.footer-badge-col {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+
+.footer-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: #888;
+    background: #f9f9f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.footer-badge img {
+    height: 14px;
+    opacity: 0.8;
+}
+
+/* Dark Theme Support via .dark class */
+.dark .footer-grid {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: #a0a0a0;
+}
+
+.dark .footer-grid strong {
+    color: #e0e0e0;
+}
+
+.dark .footer-grid a {
+    color: #888;
+}
+
+.dark .footer-grid a:hover {
+    color: #fff;
+}
+
+.dark .footer-badge {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #666;
+}
+
+/* Hero Section (MyST landing-split-img) */
+.myst-landing-split-img {
+    background-color: #000 !important;
+    color: #fff !important;
+    padding: 4rem !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 500px !important;
+    gap: 4rem !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.myst-landing-split-img-image {
+    position: relative !important;
+    width: auto !important;
+    height: auto !important;
+    flex: 1 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    max-width: 500px !important;
+}
+
+.myst-landing-split-img-image img {
+    width: 320px !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+}
+
+.myst-landing-split-img-content-wrapper {
+    position: relative !important;
+    width: auto !important;
+    flex: 1.2 !important;
+    padding: 0 !important;
+}
+
+.myst-landing-split-img-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+}
+
+.myst-landing-split-img h2,
+.myst-landing-split-img p,
+.myst-landing-split-img .prose {
+    color: #fff !important;
+}
+
+/* Flip colors in Dark mode */
+.dark .myst-landing-split-img {
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+.dark .myst-landing-split-img h2,
+.dark .myst-landing-split-img p,
+.dark .myst-landing-split-img .prose {
+    color: #000 !important;
+}
+
+/* Utility Classes for Theme Toggling */
+html[data-theme="light"] .only-dark {
+    display: none !important;
+}
+
+html[data-theme="dark"] .only-light {
+    display: none !important;
+}
