@@ -19,12 +19,13 @@ Interactive terminal UI for diagram generation. Supports single conversion, batc
 
 ### Server (Axum HTTP API)
 
-Production-ready HTTP API server with authentication, rate limiting, circuit breaker, and Prometheus metrics.
+HTTP API server with authentication, rate limiting, circuit breaker, and Prometheus metrics baseline.
 
 - **Stack**: Rust + Axum + Tower
 - **Binary**: `kroki-server`
 - **Location**: `apps/server/`
-- **Endpoints**: `/render`, `/render/batch`, `/health`, `/metrics`
+- **Current Endpoints**: `/`, `/render`, `/capabilities`, `/playground`
+- **Admin Endpoints** (admin port): `/health`, `/metrics`
 
 ### Desktop (Tauri)
 
@@ -61,6 +62,13 @@ Documentation-native plugin surface for MyST-based workflows and live diagram re
 ---
 
 ## Diagram Providers
+
+Current implementation status:
+
+- Active command providers in this phase: **Graphviz**, **D2**, **Echo (bootstrap fallback)**.
+- Browser groundwork landed: **Mermaid** provider now renders through native browser CLI runtime (`mmdc`) when available.
+- BPMN provider is registered with browser runtime metadata and explicit error/status mapping; runtime renderer implementation is pending.
+- Remaining providers listed below are migration targets for later Phase 3 batches.
 
 ### Command Providers
 
@@ -99,8 +107,8 @@ User-defined external tools via subprocess protocol. Configure custom diagram to
 
 ## Production Features
 
-- **Authentication**: API key-based with per-key rate limits
-- **Rate Limiting**: Token-bucket algorithm (per-IP and per-key)
+- **Authentication**: API key-based gate (`server.auth`)
+- **Rate Limiting**: Token-bucket algorithm (global per-IP limiter)
 - **Circuit Breaker**: Per-provider with configurable thresholds
 - **Metrics**: Prometheus export with per-provider tracking
 - **Caching**: SHA256-keyed filesystem cache

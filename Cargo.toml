@@ -24,9 +24,10 @@ serde_json = "1.0"
 thiserror = "2.0"
 anyhow = "1.0"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 toml = "0.8"
 async-trait = "0.1"
+time = { version = "=0.3.36", features = ["macros", "local-offset"] }
 
 # Domain-specific
 which = "7.0"
@@ -40,6 +41,8 @@ tempfile = "3.10"
 walkdir = "2.4"
 dashmap = "6"
 num_cpus = "1.0"
+headless_chrome = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
 # Server
 axum = "0.8"
@@ -48,6 +51,7 @@ tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
 
 # CLI
 clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.5"
 ratatui = "0.29"
 
 # Observability

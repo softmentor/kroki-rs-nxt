@@ -163,6 +163,20 @@ cargo test -p kroki-server
 - Keep test names descriptive and stable.
 - Keep heavy/integration tests out of default fast PR path unless critical.
 
+## Smoke Script
+
+Use the server smoke script to validate runtime critical paths:
+
+```bash
+scripts/smoke-server.sh
+```
+
+Current script checks:
+- Admin endpoints: `/health`, `/metrics`
+- Public capability endpoint: `/capabilities`
+- Render path status behavior for `echo`, `graphviz`, `mermaid`, `bpmn`
+- Tool-aware expectations for host dependencies (`dot`, `mmdc`)
+
 
 ## Current `dwf` behavior note
 

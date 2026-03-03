@@ -1,3 +1,4 @@
 //! Utility functions: decoding, image conversion, font management.
-//!
-//! Bootstrap baseline module; feature implementations are planned for Phase 3.
+
+#[cfg(feature = "native-browser")]
+pub mod font_manager;

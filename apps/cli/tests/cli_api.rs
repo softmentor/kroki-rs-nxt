@@ -24,7 +24,7 @@ fn cli_command_is_well_formed() {
 fn test_fixture_cli_args_is_present() {
     let args =
         fs::read_to_string(fixture_path("cli-args.txt")).expect("cli fixture args should exist");
-    assert!(args.contains("serve"));
+    assert!(args.contains("convert"));
 }
 
 #[test]

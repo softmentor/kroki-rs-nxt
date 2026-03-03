@@ -72,18 +72,26 @@ Exit Criteria:
 
 Phase 2 Closure Tasks:
 - [x] Land one minimal vertical slice (request -> provider stub -> output contract) through core + adapter + app surface.
-- [x] Freeze and document v0.1.0-alpha core request/response/error contract boundaries for migration batches.
+- [x] Freeze and document v0.1.0-alpha.0 core request/response/error contract boundaries for migration batches.
 - [x] Define explicit Phase 3 provider migration backlog (batch breakdown, dependency ordering, and risk notes).
 - [x] Add a formal Phase 2 closure update in execution logs with phase gate decision and owners.
 
 Phase 2 closure references:
-- [Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)
+- [Core Contract Boundaries (v0.1.0-alpha.0)](#kroki-rs-nxt.developer-guide.core-contracts)
 - [Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)
 - [v0.1.0 Execution Tracker](#kroki-rs-nxt.developer-guide.execution.v010)
 
-### Phase 3: Feature Migration by Capability Slice
+### Phase 3: Feature Migration by Capability Slice (Current Phase)
 
 **Goal**: Migrate kroki-rs functionality into the new architecture in prioritized batches.
+
+**Status: IN PROGRESS** (started 2026-03-03)
+
+Latest progress:
+- Landed command-provider slices for Graphviz and D2 through core -> transport -> CLI/server.
+- Added capability registry and provider metadata contract in `kroki-core`.
+- Added server admin endpoints (`/health`, `/metrics`) and public playground route (`/playground`).
+- Started Batch 3.2 groundwork with Mermaid provider registration and `native-browser` feature-gated runtime path.
 
 Detailed batch plan:
 - [Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)

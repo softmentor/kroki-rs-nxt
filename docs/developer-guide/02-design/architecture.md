@@ -104,7 +104,7 @@ Entry points that compose Core and Adapters into runnable applications.
 | App | Stack | Description |
 |-----|-------|-------------|
 | `apps/cli` (`kroki-cli`) | Rust (Ratatui TUI) | Interactive terminal UI for diagram conversion |
-| `apps/server` (`kroki-server`) | Rust (Axum) | HTTP API server with auth, rate limiting, metrics |
+| `apps/server` (`kroki-server`) | Rust (Axum + Lit playground route) | Public API (`/render`, `/capabilities`, `/playground`) + admin API (`/health`, `/metrics`) with dev/prod runtime modes |
 | `apps/desktop` | Tauri (Rust + Lit/TS) | Native desktop app with embedded web UI (planned) |
 | `apps/vscode-ext` | TypeScript | VS Code extension for in-editor diagram preview (planned) |
 | `apps/web-app` | Lit + TypeScript | Standalone web dashboard (planned) |
@@ -140,6 +140,10 @@ flowchart LR
     SERVER -->|"HTTP JSON response"| SERVER
     STORAGE -.planned cache boundary.-> REGISTRY
 ```
+
+Transport request contract supports two source paths:
+- plain source via `source`
+- encoded source via `source_encoded` + `source_encoding` (`plain`, `base64`, `base64_deflate`)
 
 ---
 
@@ -190,6 +194,27 @@ impl DiagramRegistry {
 }
 ```
 
+### CapabilityRegistry
+
+Provider metadata contract registry for discovery and planning:
+
+```rust
+pub struct ProviderMetadata {
+    pub provider_id: String,
+    pub category: ProviderCategory,
+    pub runtime: RuntimeDependency,
+    pub supported_formats: Vec<OutputFormat>,
+    pub description: String,
+}
+
+pub struct CapabilityRegistry { /* provider metadata map */ }
+```
+
+Used for:
+- capability introspection endpoints (for example `/capabilities`)
+- provider migration planning by category/runtime dependency
+- enforcing explicit metadata contracts as new providers land
+
 ### Domain Types
 
 ```rust
@@ -225,7 +250,7 @@ pub enum DiagramError {
 ```
 
 For the frozen Phase 2 baseline contract and change-control rules, see:
-- [Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)
+- [Core Contract Boundaries (v0.1.0-alpha.0)](#kroki-rs-nxt.developer-guide.core-contracts)
 
 ---
 

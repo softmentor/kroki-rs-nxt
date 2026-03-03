@@ -20,6 +20,7 @@ project:
         - title: Design
           children:
             - file: developer-guide/02-design/architecture.md
+            - file: developer-guide/02-design/style-guide.md
             - file: developer-guide/02-design/repository-structure.md
             - file: developer-guide/02-design/core-contracts.md
             - title: Design Decisions (ADRs)

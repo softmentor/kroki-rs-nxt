@@ -31,6 +31,8 @@ As of Phase 2 bootstrap:
 | Command | What it does |
 |---------|-------------|
 | `dwf setup` | Verify toolchains, sync dependencies |
+| `dwf setup:deps` | Sync language deps and verify host runtime deps (`dot`, `d2`, `mmdc`) |
+| `dwf setup:host-deps` | Verify only host runtime deps (`dot`, `d2`, `mmdc`) |
 | `dwf fmt:check` | Check formatting (rustfmt + prettier) |
 | `dwf fmt:fix` | Auto-fix formatting |
 | `dwf lint:static` | Static analysis (clippy + eslint + tsc) |
@@ -42,6 +44,12 @@ As of Phase 2 bootstrap:
 | `dwf check:pr` | Full PR verification gate (includes integration tests) |
 | `dwf ci:generate` | Generate GitHub Actions workflow |
 | `dwf ci:check` | Validate committed CI workflow |
+
+Host runtime dependency install mode:
+
+```bash
+KROKI_HOST_DEPS_MODE=install dwf setup:deps
+```
 
 ### Target Profiles
 
@@ -176,6 +184,70 @@ prep ──► build ──┬──► fmt-check
 2. Image tar cache for same-runner restore
 3. Cargo + sccache cache keyed by `runner.os + fingerprint + hash(Cargo.lock)`
 4. BuildKit cache for image builds
+
+### Local CI Parity Checklist
+
+Use this ordered checklist before phase gates:
+
+1. Verify workflow contract:
+
+```bash
+dwf ci:generate
+dwf ci:check
+```
+
+2. Verify host gate:
+
+```bash
+dwf check:pr
+```
+
+3. Verify container parity gate:
+
+```bash
+podman machine start
+./scripts/ci-local-podman.sh
+```
+
+4. Optional strict `dwf` container-runtime check:
+
+```bash
+podman build -f Dockerfile.devflow -t kroki-rs-nxt-ci:latest .
+mkdir -p .cache/devflow/node/npm .cache/devflow/rust/cargo .cache/devflow/rust/cargo/sccache .cache/devflow/rust/target
+dwf --config devflow.container.toml check:pr
+```
+
+Container-mode note:
+- Default project config runs `dwf` in host mode.
+- Keep a separate `devflow.container.toml` for parity-only validation to avoid disrupting daily host workflow.
+
+### CI Drift Status (Current)
+
+Current repository state keeps a **customized** `.github/workflows/ci.yml` for cache and runtime optimizations.
+
+Implication:
+- `dwf ci:check` reports workflow drift by design in this phase.
+
+Why this happens:
+- `dwf ci:check` enforces byte-level alignment with generated workflow structure.
+- Local customizations (cache layout, bootstrap differences, command wrapping) are flagged as drift even when functionally valid.
+
+Two operating modes:
+
+1. Strict devflow compliance mode:
+   - `dwf ci:generate --force`
+   - keep generated workflow unmodified
+   - `dwf ci:check` passes
+
+2. Optimized custom workflow mode (current):
+   - keep tuned workflow in `.github/workflows/ci.yml`
+   - treat `dwf ci:check` failure as expected drift
+   - validate behavior with host + container parity checks (`dwf check:pr`, `./scripts/ci-local-podman.sh`)
+
+Legacy devflow examples were strict-compliance mode by default:
+- generate workflow from `devflow.toml`
+- avoid manual edits in workflow file
+- push optimizations into devflow config/generator support where possible
 
 ### Test Tiers
 

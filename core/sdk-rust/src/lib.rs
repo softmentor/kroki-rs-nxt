@@ -8,6 +8,8 @@
 //! - Configuration model
 //! - Utility functions (decode, image conversion, font management)
 
+pub mod browser;
+pub mod capabilities;
 pub mod config;
 pub mod error;
 pub mod ports;
@@ -15,9 +17,11 @@ pub mod providers;
 pub mod services;
 pub mod utils;
 
+pub use browser::BrowserManager;
+pub use capabilities::{CapabilityRegistry, ProviderCategory, ProviderMetadata, RuntimeDependency};
 pub use error::{DiagramError, DiagramResult};
 pub use ports::{DiagramOptions, DiagramProvider, DiagramRequest, DiagramResponse, OutputFormat};
-pub use providers::EchoProvider;
+pub use providers::{BpmnProvider, D2Provider, EchoProvider, GraphvizProvider, MermaidProvider};
 pub use services::{render_with_registry, DiagramRegistry};
 
 #[cfg(test)]

@@ -38,3 +38,8 @@ capabilities = [
 [extensions.node]
 source = "builtin"
 required = false
+
+[extensions.host_deps]
+source = "path"
+path = "./tools/devflow-ext-host-deps.mjs"
+required = true

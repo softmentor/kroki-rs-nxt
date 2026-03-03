@@ -143,16 +143,23 @@ jobs:
             .cargo-cache/git
             .cargo-cache/sccache
             target/ci
-          key: cargo-v3-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ hashFiles('package-lock.json') }}
+          key: cargo-v3-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-v3-${{ runner.os }}-
+
+      - name: Restore npm Cache
+        uses: actions/cache@v4
+        with:
+          path: .npm-cache
+          key: npm-v2-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-v2-${{ runner.os }}-
 
       - name: Prep Cache Directories
         run: |
           mkdir -p .cargo-cache/registry .cargo-cache/git .cargo-cache/sccache target/ci
-          sudo chmod -R 777 .cargo-cache target/ci
+          mkdir -p .npm-cache
+          sudo chmod -R 777 .cargo-cache target/ci .npm-cache
 
       - name: Bootstrap & Warm Cache
-        if: needs.prep.outputs.image_available == 'true'
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -161,29 +168,15 @@ jobs:
             -e CARGO_TARGET_DIR=/workspace/target/ci \
             -e SCCACHE_DIR=/workspace/.cargo-cache/sccache \
             -e RUSTC_WRAPPER=sccache \
+            -e npm_config_cache=/workspace/.npm-cache \
             devflow-ci:latest \
-            sh -c "cargo fetch && cargo build --all-targets"
-
-      - name: Host Warmup (No CI Image)
-        if: needs.prep.outputs.image_available != 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Host Warmup Build (No CI Image)
-        if: needs.prep.outputs.image_available != 'true'
-        run: |
-          npm ci
-          cargo fetch
-          cargo build --all-targets
+            sh -c "npm ci && cargo fetch && cargo build --all-targets"
 
       - name: Fix Cache Permissions
         if: always()
         run: |
-          sudo chown -R $(id -u):$(id -g) .cargo-cache target/ci || true
-          sudo chmod -R 777 .cargo-cache target/ci || true
+          sudo chown -R $(id -u):$(id -g) .cargo-cache target/ci .npm-cache || true
+          sudo chmod -R 777 .cargo-cache target/ci .npm-cache || true
 
   # ---------------------------------------------------------------------------
   # Phase 3 — Verify: sequential checks inside the same container instance
@@ -217,29 +210,23 @@ jobs:
             .cargo-cache/git
             .cargo-cache/sccache
             target/ci
-          key: cargo-v3-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ hashFiles('package-lock.json') }}
+          key: cargo-v3-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-v3-${{ runner.os }}-
+
+      - name: Restore npm Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .npm-cache
+          key: npm-v2-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-v2-${{ runner.os }}-
 
       - name: Prep Cache Directories
         run: |
           mkdir -p .cargo-cache/registry .cargo-cache/git .cargo-cache/sccache target/ci
-          sudo chmod -R 777 .cargo-cache target/ci
-
-      - name: Bootstrap Devflow
-        if: needs.prep.outputs.image_available == 'true'
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            -e CARGO_HOME="/workspace/.cargo-cache" \
-            -e CARGO_TARGET_DIR="/workspace/target/ci" \
-            -e SCCACHE_DIR="/workspace/.cargo-cache/sccache" \
-            -e RUSTC_WRAPPER="sccache" \
-            devflow-ci:latest \
-            /bin/bash -c "cargo install --locked --git https://github.com/softmentor/devflow --bin dwf --root /workspace/.cargo-cache"
+          mkdir -p .npm-cache
+          sudo chmod -R 777 .cargo-cache target/ci .npm-cache
 
       - name: Run Sequential Checks
-        if: needs.prep.outputs.image_available == 'true'
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -248,6 +235,7 @@ jobs:
             -e CARGO_TARGET_DIR="/workspace/target/ci" \
             -e SCCACHE_DIR="/workspace/.cargo-cache/sccache" \
             -e RUSTC_WRAPPER="sccache" \
+            -e npm_config_cache="/workspace/.npm-cache" \
             -e IS_CONTAINER="true" \
             -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
@@ -256,40 +244,11 @@ jobs:
             -e GITHUB_RUN_ID="${{ github.run_id }}" \
             -e PATH="/workspace/.cargo-cache/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
             devflow-ci:latest \
-            /bin/bash -c "pids=(); dwf --report fmt-check fmt:check & pids+=($!); dwf --report lint-static lint:static & pids+=($!); dwf --report build-debug build:debug & pids+=($!); dwf --report test-unit test:unit & pids+=($!); dwf --report test-integration test:integration & pids+=($!); exit_code=0; for pid in ${pids[@]}; do wait $pid || exit_code=$?; done; exit $exit_code"
-
-      - name: Setup Node (No CI Image)
-        if: needs.prep.outputs.image_available != 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install Devflow + Dependencies (No CI Image)
-        if: needs.prep.outputs.image_available != 'true'
-        run: |
-          npm ci
-          cargo install --locked --git https://github.com/softmentor/devflow --bin dwf --force
-
-      - name: Run Sequential Checks (No CI Image)
-        if: needs.prep.outputs.image_available != 'true'
-        run: |
-          pids=()
-          dwf --report fmt-check fmt:check & pids+=($!)
-          dwf --report lint-static lint:static & pids+=($!)
-          dwf --report build-debug build:debug & pids+=($!)
-          dwf --report test-unit test:unit & pids+=($!)
-          dwf --report test-integration test:integration & pids+=($!)
-          exit_code=0
-          for pid in ${pids[@]}; do
-            wait $pid || exit_code=$?
-          done
-          exit $exit_code
+            /bin/bash -c "npm ci && pids=(); dwf --report fmt-check fmt:check & pids+=($!); dwf --report lint-static lint:static & pids+=($!); dwf --report build-debug build:debug & pids+=($!); dwf --report test-unit test:unit & pids+=($!); dwf --report test-integration test:integration & pids+=($!); exit_code=0; for pid in ${pids[@]}; do wait $pid || exit_code=$?; done; exit $exit_code"
 
       - name: Fix Cache Permissions
         if: always()
         run: |
-          sudo chown -R $(id -u):$(id -g) .cargo-cache target/ci || true
-          sudo chmod -R 777 .cargo-cache target/ci || true
+          sudo chown -R $(id -u):$(id -g) .cargo-cache target/ci .npm-cache || true
+          sudo chmod -R 777 .cargo-cache target/ci .npm-cache || true
 # project: kroki-rs-nxt

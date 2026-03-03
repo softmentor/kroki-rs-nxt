@@ -1,9 +1,9 @@
 ---
-title: Core Contract Boundaries (v0.1.0-alpha)
+title: Core Contract Boundaries (v0.1.0-alpha.0)
 label: kroki-rs-nxt.developer-guide.core-contracts
 ---
 
-# Core Contract Boundaries (v0.1.0-alpha)
+# Core Contract Boundaries (v0.1.0-alpha.0)
 
 ## Purpose
 
@@ -122,8 +122,22 @@ Phase 2 closes with a minimal vertical slice implemented and tested:
 - Core orchestration: `render_with_registry` in `core/sdk-rust/src/services.rs`
 - Transport mapping: `RenderRequestDto`/`RenderResponseDto` + `render_diagram` in `adapters/transport/src/lib.rs`
 - App usage:
-  - CLI convert path uses `run_convert_bootstrap`
+  - CLI convert path uses `run_convert`
   - Server `/render` route executes through adapter and core registry
+
+### Transport DTO Compatibility Notes
+
+`RenderRequestDto` accepts both plain and encoded payloads:
+
+- `source: String` (plain payload path)
+- `source_encoded: Option<String>` (optional encoded payload path)
+- `source_encoding: PayloadEncoding` (`plain`, `base64`, `base64_deflate`)
+
+Behavior:
+
+- If `source` is non-empty, it is used directly.
+- If `source` is empty, adapter decodes `source_encoded` using `source_encoding`.
+- If neither path provides content, adapter returns `ValidationFailed`.
 
 ### Contract Flow Sequence
 
@@ -146,7 +160,7 @@ sequenceDiagram
 
 ## Change Control for Phase 3
 
-For `v0.1.0-alpha`, this contract is frozen with the following rules:
+For `v0.1.0-alpha.0`, this contract is frozen with the following rules:
 
 - Additive fields are allowed only when backward-compatible defaults exist.
 - Field removals/renames are blocked until Phase 3 parity planning explicitly approves them.

@@ -19,3 +19,5 @@ tokio = { workspace = true }
 dashmap = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
+base64 = { workspace = true }
+flate2 = { workspace = true }

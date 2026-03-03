@@ -21,6 +21,12 @@ Scope:
 - D2
 - Shared command execution wrapper and timeout handling
 
+Progress update (2026-03-03):
+
+- Graphviz provider landed.
+- D2 provider landed.
+- Shared command execution abstraction is still pending; providers currently use per-provider command paths with common timeout/error conventions.
+
 Deliverables:
 
 - Command provider base implementation in `kroki-core`
@@ -44,6 +50,13 @@ Scope:
 - Mermaid
 - BPMN
 - Browser execution bootstrap using `native-browser` feature
+
+Progress update (2026-03-03):
+
+- Mermaid provider runtime path is wired through `mmdc` in `native-browser` builds.
+- Explicit error/status mapping is now applied at server render boundary.
+- BPMN provider baseline is registered with status-mapped pending runtime implementation.
+- Browser pooling/runtime hardening remains pending for next increments.
 
 Deliverables:
 

@@ -11,7 +11,7 @@ name = "kroki-server"
 path = "src/main.rs"
 
 [dependencies]
-kroki-core = { workspace = true }
+kroki-core = { workspace = true, features = ["native-browser"] }
 kroki-plugins = { workspace = true }
 kroki-adapter-storage = { workspace = true }
 kroki-adapter-transport = { workspace = true }
@@ -19,8 +19,16 @@ axum = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
+clap = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+time = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+
+[dev-dependencies]
+which = { workspace = true }
+base64 = { workspace = true }

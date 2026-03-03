@@ -25,6 +25,12 @@ cd kroki-rs-nxt
 # Verify toolchains
 dwf setup
 
+# Verify Rust/Node dependencies and host runtime tools
+dwf setup:deps
+
+# Optional: auto-install missing host runtime deps
+KROKI_HOST_DEPS_MODE=install dwf setup:deps
+
 # Build all Rust workspace members
 dwf build:debug
 
@@ -56,7 +62,23 @@ cargo test -p kroki-core
 dwf check:pr
 ```
 
-This runs all checks in the `pr` target: `fmt:check`, `lint:static`, `build:debug`, `test:unit`.
+This runs all checks in the `pr` target: `fmt:check`, `lint:static`, `build:debug`, `test:unit`, `test:integration`.
+
+## Containerized Local CI (Podman)
+
+```bash
+podman machine init   # first time only
+podman machine start
+./scripts/ci-local-podman.sh
+```
+
+Optional strict container-runtime check:
+
+```bash
+podman build -f Dockerfile.devflow -t kroki-rs-nxt-ci:latest .
+mkdir -p .cache/devflow/node/npm .cache/devflow/rust/cargo .cache/devflow/rust/cargo/sccache .cache/devflow/rust/target
+dwf --config devflow.container.toml check:pr
+```
 
 ## Next Steps
 

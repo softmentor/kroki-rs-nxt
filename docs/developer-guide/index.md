@@ -24,8 +24,9 @@ If you are planning architecture changes, review **Architecture** and the **ADRs
 ### Design
 
 - **[Architecture](#kroki-rs-nxt.developer-guide.architecture)**: Hexagonal boundaries, domain model, and dependency rules.
+- **[UI Style Guide](#kroki-rs-nxt.developer-guide.ui-style-guide)**: Shared visual tokens and interaction patterns for web-facing surfaces.
 - **[Repository Structure](#kroki-rs-nxt.developer-guide.repository-structure)**: Folder responsibilities, workspace membership, and naming standards.
-- **[Core Contract Boundaries (v0.1.0-alpha)](#kroki-rs-nxt.developer-guide.core-contracts)**: Frozen request/response/error boundaries for Phase 3 migration work.
+- **[Core Contract Boundaries (v0.1.0-alpha.0)](#kroki-rs-nxt.developer-guide.core-contracts)**: Frozen request/response/error boundaries for Phase 3 migration work.
 - **[Design Decisions (ADRs)](#kroki-rs-nxt.developer-guide.adr.index)**: Canonical architectural decisions and their rationale.
 
 ### Development

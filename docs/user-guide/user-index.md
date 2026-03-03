@@ -18,8 +18,10 @@ Welcome to the kroki-rs-nxt user guide. This section covers everything you need 
 
 | Surface | Command | Description |
 |---------|---------|-------------|
-| **Server** | `cargo run -p kroki-server` | HTTP API on port 8000 |
-| **CLI** | `cargo run -p kroki-cli` | Terminal interface |
+| **Server** | `kroki-server --mode dev` | HTTP API with `/render`, `/capabilities`, `/playground` |
+| **Server Admin** | `kroki-server --mode dev --admin-port 8081` | Admin URLs: `/health`, `/metrics` |
+| **Server (Container)** | `./scripts/run-server-container.sh` | Local container with Graphviz, D2, Mermaid CLI, Chromium |
+| **CLI** | `kroki convert --help` | Binary-first CLI usage with completions support |
 | **Desktop** | `pnpm tauri dev` | Native desktop app (Phase 4) |
 | **Web** | `pnpm --filter @kroki/web-app dev` | Web dashboard (Phase 4) |
 | **VS Code** | Extension marketplace | Editor integration (Phase 4) |
