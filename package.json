@@ -1,0 +1,5 @@
+{
+  "name": "kroki-rs-nxt",
+  "private": true,
+  "packageManager": "pnpm@9.15.0"
+}

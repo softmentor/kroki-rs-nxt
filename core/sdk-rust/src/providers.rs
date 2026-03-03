@@ -1,0 +1,8 @@
+//! Diagram provider implementations.
+//!
+//! Provider categories:
+//! - Command: wraps CLI tools via subprocess (Graphviz, D2, Ditaa, etc.)
+//! - Browser: evaluates JS in headless Chrome (Mermaid, BPMN)
+//! - Pipeline: multi-step conversion chains (Vega-Lite → Vega → SVG)
+//!
+//! Placeholder module — providers will be implemented during Phase 3 feature migration.

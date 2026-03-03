@@ -1,0 +1,22 @@
+[package]
+name = "kroki-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Interactive CLI for diagram generation (Ratatui TUI)"
+
+[[bin]]
+name = "kroki"
+path = "src/main.rs"
+
+[dependencies]
+kroki-core = { workspace = true }
+kroki-plugins = { workspace = true }
+kroki-adapter-storage = { workspace = true }
+kroki-adapter-transport = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

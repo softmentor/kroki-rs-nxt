@@ -1,0 +1,6 @@
+packages:
+  - "core/sdk-ts"
+  - "apps/desktop/src"
+  - "apps/vscode-ext"
+  - "apps/web-app"
+  - "shared/design-system"
