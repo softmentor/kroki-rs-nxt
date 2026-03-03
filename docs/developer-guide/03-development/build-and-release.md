@@ -221,33 +221,24 @@ Container-mode note:
 - Default project config runs `dwf` in host mode.
 - Keep a separate `devflow.container.toml` for parity-only validation to avoid disrupting daily host workflow.
 
-### CI Drift Status (Current)
+### CI Compliance Status (Current)
 
-Current repository state keeps a **customized** `.github/workflows/ci.yml` for cache and runtime optimizations.
+Current repository state is in **strict devflow compliance mode**:
 
-Implication:
-- `dwf ci:check` reports workflow drift by design in this phase.
+- `.github/workflows/ci.yml` is generator-owned (`dwf ci:generate --force`)
+- `dwf ci:check` is expected to pass
 
-Why this happens:
-- `dwf ci:check` enforces byte-level alignment with generated workflow structure.
-- Local customizations (cache layout, bootstrap differences, command wrapping) are flagged as drift even when functionally valid.
+How strict mode is preserved while keeping generated bootstrap functional:
 
-Two operating modes:
+- The generated workflow installs `dwf` from path `crates/devflow-cli`.
+- This repository provides a lightweight `crates/devflow-cli` shim binary named `dwf` that forwards to the image-installed devflow CLI.
+- This keeps the workflow generator-compliant without manual workflow edits.
 
-1. Strict devflow compliance mode:
-   - `dwf ci:generate --force`
-   - keep generated workflow unmodified
-   - `dwf ci:check` passes
+Operating rule:
 
-2. Optimized custom workflow mode (current):
-   - keep tuned workflow in `.github/workflows/ci.yml`
-   - treat `dwf ci:check` failure as expected drift
-   - validate behavior with host + container parity checks (`dwf check:pr`, `./scripts/ci-local-podman.sh`)
-
-Legacy devflow examples were strict-compliance mode by default:
-- generate workflow from `devflow.toml`
-- avoid manual edits in workflow file
-- push optimizations into devflow config/generator support where possible
+1. Make CI topology changes through `devflow.toml` and generator-compatible inputs.
+2. Regenerate workflow with `dwf ci:generate --force`.
+3. Verify with `dwf ci:check`.
 
 ### Test Tiers
 

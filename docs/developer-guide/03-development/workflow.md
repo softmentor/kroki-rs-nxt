@@ -130,8 +130,8 @@ dwf ci:check
 The generated workflow runs inside a fingerprinted CI container for reproducibility.
 
 Current note:
-- In this repository phase, CI workflow is intentionally customized for cache/runtime tuning.
-- If `.github/workflows/ci.yml` is intentionally customized, `dwf ci:check` may fail with expected drift.
+- Keep `.github/workflows/ci.yml` generator-owned for strict compliance.
+- Use `dwf ci:generate --force` after CI topology changes and verify with `dwf ci:check`.
 
 ---
 

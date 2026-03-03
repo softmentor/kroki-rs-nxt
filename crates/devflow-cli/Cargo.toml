@@ -1,0 +1,11 @@
+[package]
+name = "devflow-cli"
+version = "0.2.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "dwf"
+path = "src/main.rs"
+
+[workspace]
