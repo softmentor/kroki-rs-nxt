@@ -22,11 +22,11 @@ apps/ (CLI, Server, Desktop, VS Code, Web)
         └── core/ (Domain Logic, SDKs, Plugins)
 ```
 
-Follows **Hexagonal (Ports & Adapters)** pattern. See [docs/architecture.md](docs/architecture.md) for details.
+Follows **Hexagonal (Ports & Adapters)** pattern. See [docs/developer-guide/02-design/architecture.md](docs/developer-guide/02-design/architecture.md) for details.
 
 ## Project Status
 
-**Phase 2: Bootstrap** - Scaffolding the monorepo structure and documentation. See [docs/roadmap.md](docs/roadmap.md) for the full migration plan.
+**Phase 2: Bootstrap** - Scaffolding the monorepo structure and documentation. See [docs/developer-guide/04-roadmap/index.md](docs/developer-guide/04-roadmap/index.md) for the full migration plan.
 
 ## Getting Started
 
@@ -65,12 +65,12 @@ dwf verify
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) - Hexagonal architecture and domain model
-- [Repository Structure](docs/repository-structure.md) - Folder layout and workspace membership
-- [Build & Release](docs/build-and-release.md) - Build strategy and CI pipeline
-- [Development Workflow](docs/development-workflow.md) - Getting started and daily workflow
-- [Migration from kroki-rs](docs/migration-from-kroki-rs.md) - Module mapping and changes
-- [Roadmap](docs/roadmap.md) - Phased migration plan with gate criteria
+- [Architecture](docs/developer-guide/02-design/architecture.md) - Hexagonal architecture and domain model
+- [Repository Structure](docs/developer-guide/02-design/repository-structure.md) - Folder layout and workspace membership
+- [Build & Release](docs/developer-guide/03-development/build-and-release.md) - Build strategy and CI pipeline
+- [Development Workflow](docs/developer-guide/03-development/workflow.md) - Getting started and daily workflow
+- [Migration from kroki-rs](docs/developer-guide/04-roadmap/migration-from-kroki-rs.md) - Module mapping and changes
+- [Roadmap](docs/developer-guide/04-roadmap/index.md) - Phased migration plan with gate criteria
 
 ## License
 

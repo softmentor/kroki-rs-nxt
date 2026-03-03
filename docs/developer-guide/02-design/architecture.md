@@ -2,7 +2,6 @@
 title: Architecture Overview
 label: kroki-rs-nxt.developer-guide.architecture
 ---
-
 # Architecture Overview
 
 ## Design Philosophy
@@ -209,12 +208,12 @@ This ensures business logic is written once in Rust and shared across all surfac
 
 ## Architectural Decision Records
 
-Key decisions are tracked in [ADRs](#kroki-rs-nxt.developer-guide.adr.index):
+Key decisions will be tracked in `docs/adr/` as the project evolves:
 
 | ADR | Decision |
 |-----|----------|
-| [ADR-001](#kroki-rs-nxt.adr.0001) | Hexagonal architecture with apps/adapters/core layering |
-| [ADR-002](#kroki-rs-nxt.adr.0002) | Single monorepo for all surfaces (split only when evidence justifies) |
-| [ADR-003](#kroki-rs-nxt.adr.0003) | devflow v0.2.0 as workflow orchestration from day one |
-| [ADR-004](#kroki-rs-nxt.adr.0004) | Wasm bridge for Rust-to-TypeScript shared logic |
-| [ADR-005](#kroki-rs-nxt.adr.0005) | Ratatui for CLI TUI (upgrade from clap-only) |
+| ADR-001 | Hexagonal architecture with apps/adapters/core layering |
+| ADR-002 | Single monorepo for all surfaces (split only when evidence justifies) |
+| ADR-003 | devflow v0.2.0 as workflow orchestration from day one |
+| ADR-004 | Wasm bridge for Rust-to-TypeScript shared logic |
+| ADR-005 | Ratatui for CLI TUI (upgrade from clap-only) |

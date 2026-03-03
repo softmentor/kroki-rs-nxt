@@ -2,7 +2,6 @@
 title: Repository Structure
 label: kroki-rs-nxt.developer-guide.repository-structure
 ---
-
 # Repository Structure Guide
 
 ## Directory Layout
@@ -57,11 +56,13 @@ kroki-rs-nxt/
 │   │   └── package.json
 │   └── scripts/                    # Global CI/CD & Build scripts
 │
-├── docs/                           # MyST documentation
-│   ├── myst.yml                    # MyST configuration
-│   ├── toc.yml                     # Table of contents
-│   ├── index.md                    # Landing page
-│   └── ...
+├── docs/                           # Project documentation
+│   ├── roadmap.md
+│   ├── architecture.md
+│   ├── repository-structure.md     # (this file)
+│   ├── build-and-release.md
+│   ├── development-workflow.md
+│   └── migration-from-kroki-rs.md
 │
 ├── Cargo.toml                      # Root Rust Workspace
 ├── package.json                    # Root pnpm Workspace
