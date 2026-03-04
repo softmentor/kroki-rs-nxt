@@ -143,6 +143,33 @@ pub fn app_with_config(config: &Config) -> Router {
             description: "Wavedrom command provider".to_string(),
         },
     );
+    registry.register_with_metadata(
+        "vega",
+        Arc::new(kroki_core::VegaProvider::new()),
+        ProviderMetadata {
+            provider_id: "vega".to_string(),
+            category: ProviderCategory::Pipeline,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "vg2svg".to_string(),
+            },
+            supported_formats: vec![kroki_core::OutputFormat::Svg],
+            description: "Vega pipeline provider".to_string(),
+        },
+    );
+    registry.register_with_metadata(
+        "vegalite",
+        Arc::new(kroki_core::VegaLiteProvider::new()),
+        ProviderMetadata {
+            provider_id: "vegalite".to_string(),
+            category: ProviderCategory::Pipeline,
+            // Uses both vl2vg and vg2svg, specifying vl2vg as primary entrypoint requirement
+            runtime: RuntimeDependency::SystemTool {
+                binary: "vl2vg".to_string(),
+            },
+            supported_formats: vec![kroki_core::OutputFormat::Svg],
+            description: "Vega-Lite pipeline provider".to_string(),
+        },
+    );
 
     let rate_limiter = if config.server.rate_limit.enabled {
         Some(RateLimiter::new(&config.server.rate_limit))
@@ -209,33 +236,27 @@ async fn playground_handler() -> Html<String> {
 async fn render_handler(
     State(state): State<AppState>,
     Json(request): Json<RenderRequestDto>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Response, Response> {
     if request.source.len() > state.policies.max_input_size {
-        return Err((
+        return Err(build_problem_response(
             StatusCode::PAYLOAD_TOO_LARGE,
-            serde_json::json!({
-                "code": "payload_too_large",
-                "message": format!(
-                    "input exceeds max_input_size ({} bytes)",
-                    state.policies.max_input_size
-                )
-            })
-            .to_string(),
+            "payload_too_large",
+            &format!(
+                "input exceeds max_input_size ({} bytes)",
+                state.policies.max_input_size
+            ),
         ));
     }
 
     if let Some(cb) = state.policies.circuit_breaker.as_ref() {
         if !cb.should_allow(&request.diagram_type) {
-            return Err((
+            return Err(build_problem_response(
                 StatusCode::SERVICE_UNAVAILABLE,
-                serde_json::json!({
-                    "code": "circuit_breaker_open",
-                    "message": format!(
-                        "provider '{}' is temporarily unavailable due to repeated failures",
-                        request.diagram_type
-                    )
-                })
-                .to_string(),
+                "circuit_breaker_open",
+                &format!(
+                    "provider '{}' is temporarily unavailable due to repeated failures",
+                    request.diagram_type
+                ),
             ));
         }
     }
@@ -251,28 +272,17 @@ async fn render_handler(
                 }
             }
             warn!(error = %err, "render request rejected");
-            let (status, code) = map_error_status(&err);
-            (
-                status,
-                serde_json::json!({
-                    "code": code,
-                    "message": err.to_string()
-                })
-                .to_string(),
-            )
+            diagram_error_to_problem(&err)
         })?;
 
     if response.data.len() > state.policies.max_output_size {
-        return Err((
+        return Err(build_problem_response(
             StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({
-                "code": "output_too_large",
-                "message": format!(
-                    "generated output exceeds max_output_size ({} bytes)",
-                    state.policies.max_output_size
-                )
-            })
-            .to_string(),
+            "output_too_large",
+            &format!(
+                "generated output exceeds max_output_size ({} bytes)",
+                state.policies.max_output_size
+            ),
         ));
     }
 
@@ -285,7 +295,8 @@ async fn render_handler(
         "data": response.data_as_string(),
         "content_type": response.content_type,
         "duration_ms": response.duration_ms,
-    })))
+    }))
+    .into_response())
 }
 
 /// Execute render and return raw content with correct Content-Type header.
@@ -295,35 +306,29 @@ async fn render_handler(
 async fn execute_and_respond_raw(
     state: &AppState,
     request: RenderRequestDto,
-) -> Result<Response, (StatusCode, String)> {
+) -> Result<Response, Response> {
     // Validate input size
     if request.source.len() > state.policies.max_input_size {
-        return Err((
+        return Err(build_problem_response(
             StatusCode::PAYLOAD_TOO_LARGE,
-            serde_json::json!({
-                "code": "payload_too_large",
-                "message": format!(
-                    "input exceeds max_input_size ({} bytes)",
-                    state.policies.max_input_size
-                )
-            })
-            .to_string(),
+            "payload_too_large",
+            &format!(
+                "input exceeds max_input_size ({} bytes)",
+                state.policies.max_input_size
+            ),
         ));
     }
 
     // Check circuit breaker
     if let Some(cb) = state.policies.circuit_breaker.as_ref() {
         if !cb.should_allow(&request.diagram_type) {
-            return Err((
+            return Err(build_problem_response(
                 StatusCode::SERVICE_UNAVAILABLE,
-                serde_json::json!({
-                    "code": "circuit_breaker_open",
-                    "message": format!(
-                        "provider '{}' is temporarily unavailable due to repeated failures",
-                        request.diagram_type
-                    )
-                })
-                .to_string(),
+                "circuit_breaker_open",
+                &format!(
+                    "provider '{}' is temporarily unavailable due to repeated failures",
+                    request.diagram_type
+                ),
             ));
         }
     }
@@ -339,29 +344,18 @@ async fn execute_and_respond_raw(
                 }
             }
             warn!(error = %err, "render request rejected");
-            let (status, code) = map_error_status(&err);
-            (
-                status,
-                serde_json::json!({
-                    "code": code,
-                    "message": err.to_string()
-                })
-                .to_string(),
-            )
+            diagram_error_to_problem(&err)
         })?;
 
     // Validate output size
     if response.data.len() > state.policies.max_output_size {
-        return Err((
+        return Err(build_problem_response(
             StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({
-                "code": "output_too_large",
-                "message": format!(
-                    "generated output exceeds max_output_size ({} bytes)",
-                    state.policies.max_output_size
-                )
-            })
-            .to_string(),
+            "output_too_large",
+            &format!(
+                "generated output exceeds max_output_size ({} bytes)",
+                state.policies.max_output_size
+            ),
         ));
     }
 
@@ -388,26 +382,16 @@ async fn kroki_post_handler(
     State(state): State<AppState>,
     Path((diagram_type, output_format)): Path<(String, String)>,
     body: Bytes,
-) -> Result<Response, (StatusCode, String)> {
+) -> Result<Response, Response> {
     let format: OutputFormat = output_format.parse().map_err(|e: String| {
-        (
-            StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "code": "invalid_format",
-                "message": e
-            })
-            .to_string(),
-        )
+        build_problem_response(StatusCode::BAD_REQUEST, "invalid_format", &e)
     })?;
 
     let source = String::from_utf8(body.to_vec()).map_err(|_| {
-        (
+        build_problem_response(
             StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "code": "invalid_body",
-                "message": "request body must be valid UTF-8"
-            })
-            .to_string(),
+            "invalid_body",
+            "request body must be valid UTF-8",
         )
     })?;
 
@@ -429,26 +413,16 @@ async fn kroki_post_handler(
 async fn kroki_get_handler(
     State(state): State<AppState>,
     Path((diagram_type, output_format, encoded_source)): Path<(String, String, String)>,
-) -> Result<Response, (StatusCode, String)> {
+) -> Result<Response, Response> {
     let format: OutputFormat = output_format.parse().map_err(|e: String| {
-        (
-            StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "code": "invalid_format",
-                "message": e
-            })
-            .to_string(),
-        )
+        build_problem_response(StatusCode::BAD_REQUEST, "invalid_format", &e)
     })?;
 
     let source = decode_base64_deflate_source(&encoded_source).map_err(|err| {
-        (
+        build_problem_response(
             StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "code": "invalid_encoding",
-                "message": err.to_string()
-            })
-            .to_string(),
+            "invalid_encoding",
+            &err.to_string(),
         )
     })?;
 
@@ -472,15 +446,12 @@ async fn kroki_get_handler(
 async fn kroki_json_handler(
     State(state): State<AppState>,
     Json(body): Json<KrokiJsonRequestDto>,
-) -> Result<Response, (StatusCode, String)> {
+) -> Result<Response, Response> {
     let request = body.into_render_request().map_err(|err| {
-        (
+        build_problem_response(
             StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "code": "invalid_request",
-                "message": err.to_string()
-            })
-            .to_string(),
+            "invalid_request",
+            &err.to_string(),
         )
     })?;
 
@@ -507,6 +478,33 @@ fn map_error_status(err: &DiagramError) -> (StatusCode, &'static str) {
             (StatusCode::INTERNAL_SERVER_ERROR, "internal_error")
         }
     }
+}
+
+/// Build an RFC 7807 Problem Details response (`application/problem+json`).
+///
+/// Reference: <https://www.rfc-editor.org/rfc/rfc7807>
+fn build_problem_response(status: StatusCode, error_type: &str, detail: &str) -> Response {
+    let body = serde_json::json!({
+        "type": format!("https://kroki.io/errors/{error_type}"),
+        "title": status.canonical_reason().unwrap_or("Error"),
+        "status": status.as_u16(),
+        "detail": detail,
+    });
+    (
+        status,
+        [(
+            header::CONTENT_TYPE,
+            "application/problem+json",
+        )],
+        body.to_string(),
+    )
+        .into_response()
+}
+
+/// Map a `DiagramError` to an RFC 7807 Problem Details response.
+fn diagram_error_to_problem(err: &DiagramError) -> Response {
+    let (status, error_type) = map_error_status(err);
+    build_problem_response(status, error_type, &err.to_string())
 }
 
 async fn health_handler() -> Json<serde_json::Value> {
@@ -1502,7 +1500,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn integration_render_route_bpmn_returns_not_implemented_status() {
+    async fn integration_render_route_bpmn_returns_processable_error_for_invalid_source() {
         let app = super::app();
         let request = Request::builder()
             .method("POST")
@@ -1517,7 +1515,7 @@ mod tests {
             .oneshot(request)
             .await
             .expect("app should handle request");
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     #[tokio::test]
@@ -1624,7 +1622,7 @@ mod tests {
             .oneshot(req())
             .await
             .expect("first request should complete");
-        assert_eq!(first.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(first.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
         let second = app
             .clone()
@@ -1632,5 +1630,87 @@ mod tests {
             .await
             .expect("second request should complete");
         assert_eq!(second.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn integration_error_response_is_rfc7807_problem_json() {
+        let app = super::app();
+        // Trigger a validation error (empty source)
+        let request = Request::builder()
+            .method("POST")
+            .uri("/render")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"source":"   ","diagram_type":"echo","output_format":"Svg"}"#,
+            ))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        // Verify RFC 7807 content type
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(
+            ct, "application/problem+json",
+            "error responses must use application/problem+json"
+        );
+
+        // Verify RFC 7807 body structure
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let problem: serde_json::Value =
+            serde_json::from_slice(&bytes).expect("body should be valid JSON");
+        assert!(
+            problem.get("type").is_some(),
+            "RFC 7807 requires 'type' field"
+        );
+        assert!(
+            problem.get("title").is_some(),
+            "RFC 7807 requires 'title' field"
+        );
+        assert_eq!(
+            problem["status"].as_u64().unwrap(),
+            400,
+            "RFC 7807 'status' should match HTTP status"
+        );
+        assert!(
+            problem.get("detail").is_some(),
+            "RFC 7807 requires 'detail' field"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_endpoint_error_is_rfc7807_problem_json() {
+        let app = super::app();
+        // Trigger invalid format error via standard kroki endpoint
+        let request = Request::builder()
+            .method("POST")
+            .uri("/echo/bmp")
+            .header("content-type", "text/plain")
+            .body(Body::from("A -> B"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "application/problem+json");
+
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let problem: serde_json::Value =
+            serde_json::from_slice(&bytes).expect("body should be valid JSON");
+        assert_eq!(problem["status"].as_u64().unwrap(), 400);
+        assert!(problem["type"]
+            .as_str()
+            .unwrap()
+            .contains("invalid_format"));
     }
 }

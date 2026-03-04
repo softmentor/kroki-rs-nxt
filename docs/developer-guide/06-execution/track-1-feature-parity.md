@@ -57,18 +57,18 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 
 | Command | Description | Status |
 |---------|-------------|--------|
-| `convert <file>` | Transform diagram to output format | - [ ] Partial (needs `-o`, stdin, auto-detect) |
-| `encode` | Encode text to deflate + base64 | - [ ] Gap |
-| `decode` | Decode deflate + base64 to text | - [ ] Gap |
+| `convert <file>` | Transform diagram to output format | - [x] Parity |
+| `encode` | Encode text to deflate + base64 | - [x] Parity |
+| `decode` | Decode deflate + base64 to text | - [x] Parity |
 | `completion` | Shell autocompletion scripts | - [x] Parity |
-| `version` | Show version info | - [ ] Gap |
+| `version` | Show version info | - [x] Parity |
 
 ### Required `convert` Options
 
-- [ ] `-t/--type` with auto-detection from file extension
-- [ ] `-f/--format` output format selection
-- [ ] `-o/--out-file` with stdout support (`-`)
-- [ ] Stdin input support (`-`)
+- [x] `-t/--type` with auto-detection from file extension
+- [x] `-f/--format` output format selection
+- [x] `-o/--out-file` with stdout support (`-`)
+- [x] Stdin input support (`-`)
 - [ ] `-c/--config` config file path override
 - [ ] `KROKI_ENDPOINT` env var support
 
@@ -95,29 +95,29 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 
 | Provider | kroki-rs | kroki-rs-nxt | Pattern | Status |
 |----------|----------|--------------|---------|--------|
-| Graphviz | SVG, PNG, PDF | SVG only | CommandProvider | - [ ] Partial — wire PNG, PDF |
-| D2 | SVG, PNG, PDF | SVG only | CommandProvider | - [ ] Partial — wire PNG, PDF |
-| Mermaid | SVG, PNG, PDF (CDP) | SVG only (CDP + mmdc) | BrowserProvider | - [ ] Partial — wire PNG, PDF |
-| BPMN | SVG, PNG, PDF (CDP) | Stub (returns error) | BrowserProvider | - [ ] Gap — wire runtime |
-| Ditaa | PNG (JAR/exe) | Not implemented | CommandProvider | - [ ] Gap |
-| Excalidraw | SVG | Not implemented | CommandProvider | - [ ] Gap |
-| Wavedrom | SVG, PNG | Not implemented | CommandProvider | - [ ] Gap |
-| Vega | SVG (`vg2svg`) | Not implemented | CommandProvider | - [ ] Gap |
-| Vega-Lite | SVG (`vl2vg` + `vg2svg`) | Not implemented | PipelineProvider | - [ ] Gap |
+| Graphviz | SVG, PNG, PDF | SVG + PNG/WebP via resvg | CommandProvider | - [x] Parity (SVG+raster) |
+| D2 | SVG, PNG, PDF | SVG + PNG/WebP via resvg | CommandProvider | - [x] Parity (SVG+raster) |
+| Mermaid | SVG, PNG, PDF (CDP) | SVG + PNG/WebP (CDP + mmdc) | BrowserProvider | - [x] Parity (SVG+raster) |
+| BPMN | SVG, PNG, PDF (CDP) | SVG (browser-backed) | BrowserProvider | - [x] Parity (SVG+raster) |
+| Ditaa | PNG (JAR/exe) | PNG + SVG | CommandProvider | - [x] Parity |
+| Excalidraw | SVG | SVG | CommandProvider | - [x] Parity |
+| Wavedrom | SVG, PNG | SVG + PNG/WebP via resvg | CommandProvider | - [x] Parity |
+| Vega | SVG (`vg2svg`) | SVG + PNG/WebP via resvg | PipelineProvider | - [x] Parity |
+| Vega-Lite | SVG (`vl2vg` + `vg2svg`) | SVG + PNG/WebP via resvg | PipelineProvider | - [x] Parity |
 | Echo | N/A | Testing stub | — | - [x] Test utility |
 
-**Summary**: 3/9 production providers implemented, all SVG-only.
+**Summary**: 9/9 production providers implemented. SVG primary; PNG/WebP via transport-layer resvg conversion.
 
 ### Output Format Support
 
 | Format | kroki-rs | kroki-rs-nxt | Status |
 |--------|----------|--------------|--------|
-| SVG | All providers | 3 providers | - [ ] Partial |
-| PNG | 6 providers | Core wiring complete | - [x] Parity |
-| PDF | 4 providers | Declared but not wired | - [ ] Gap |
-| WebP | Post-processing (SVG/PNG → WebP) | Core wiring complete | - [x] Parity |
+| SVG | All providers | All 9 providers | - [x] Parity |
+| PNG | 6 providers | All providers via resvg conversion | - [x] Parity |
+| PDF | 4 providers | Declared, not yet wired | - [ ] Gap |
+| WebP | Post-processing (SVG/PNG → WebP) | All providers via resvg conversion | - [x] Parity |
 
-`OutputFormat` enum declares SVG/PNG/WebP/PDF. `resvg` and `image` crate dependencies exist. Conversion logic needs wiring.
+`OutputFormat` enum declares SVG/PNG/WebP/PDF. SVG→PNG and SVG→WebP conversion implemented in `adapters/transport/src/conversion.rs` using `resvg` + `image` crates. PDF requires a dedicated crate (future work).
 
 ---
 
@@ -149,7 +149,7 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 | CORS | tower-http | tower-http | - [x] Parity |
 | Input size validation | `max_input_size` | `max_input_size` | - [x] Parity |
 | Output size validation | `max_output_size` | `max_output_size` | - [x] Parity |
-| RFC 7807 errors | Problem Details JSON | Custom JSON | - [ ] Gap |
+| RFC 7807 errors | Problem Details JSON | `application/problem+json` | - [x] Parity |
 
 ---
 
@@ -157,9 +157,9 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 
 | Feature | kroki-rs | kroki-rs-nxt | Status |
 |---------|----------|--------------|--------|
-| `convert` single file | Yes | Yes | - [x] Parity (core) |
-| `-o/--out-file` | Yes | N/A | - [ ] Gap |
-| Stdin/stdout piping | Yes | N/A | - [ ] Gap |
+| `convert` single file | Yes | Yes | - [x] Parity |
+| `-o/--out-file` | Yes | Yes (stdout via `-`) | - [x] Parity |
+| Stdin/stdout piping | Yes | Yes | - [x] Parity |
 | `--font` flag | Yes | N/A | - [ ] Gap |
 | `batch` directory | Parallel, auto-detect | Placeholder only | - [ ] Gap |
 | `serve` | Start HTTP server | Separate binary | - [x] Architectural change |
@@ -203,9 +203,9 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 | Adaptive timeout | Base + 1ms/10B, max 10s | Fixed per-request | - [ ] Gap |
 | SHA-256 content caching | File-based cache | N/A (`adapters/storage` empty) | - [ ] Gap |
 | Font manager | URL/file, SHA-256, 5MB max | URL/file, SHA-256, 10MB max | - [x] Parity+ |
-| Image converter | SVG→WebP, PNG→WebP | Deps present, not wired | - [ ] Gap |
+| Image converter | SVG→WebP, PNG→WebP | SVG→PNG, SVG→WebP via resvg | - [x] Parity |
 | Base64/Deflate decode | Standard + URL-Safe + Raw | Standard + URL-Safe + NoPad | - [x] Parity |
-| File type auto-detection | Extension mapping (7+ types) | N/A (batch not done) | - [ ] Gap |
+| File type auto-detection | Extension mapping (7+ types) | 10 extensions (.dot, .mmd, .d2, etc.) | - [x] Parity |
 
 ---
 
@@ -225,16 +225,16 @@ Cache namespacing: Configurable at runtime via `kroki.toml` or env var, with a s
 
 | Category | Score | Key Gaps |
 |----------|-------|----------|
-| Providers | 3/9 (33%) | Ditaa, Excalidraw, Wavedrom, Vega, VegaLite, BPMN runtime |
-| Output Formats | SVG only (25%) | PNG, PDF, WebP not wired |
-| Server API | ~70% | Standard kroki endpoints, admin dashboard, RFC 7807 |
-| Middleware | ~85% | Admin auth, RFC 7807 errors |
-| CLI | ~40% | encode/decode, batch, cache, font, stdin/stdout |
+| Providers | 9/9 (100%) | All production providers implemented |
+| Output Formats | SVG+PNG+WebP (75%) | PDF not yet wired |
+| Server API | ~90% | Admin dashboard gap |
+| Middleware | ~95% | Admin auth gap |
+| CLI | ~75% | Batch, cache, font, config flags |
 | Browser Pool | ~95% | Near parity with improvements |
 | Configuration | ~60% | Per-tool config, plugin config |
-| Cross-cutting | ~50% | Adaptive timeout, caching, image conversion |
+| Cross-cutting | ~75% | Adaptive timeout, caching |
 
-**Overall Phase 3 completion: ~35%**
+**Overall Phase 3 completion: ~80%**
 
 ---
 
@@ -243,14 +243,15 @@ Cache namespacing: Configurable at runtime via `kroki.toml` or env var, with a s
 | Priority | Batch | Description | Effort |
 |----------|-------|-------------|--------|
 | 1 | API compat | Standard kroki endpoints (POST raw, POST JSON, GET encoded) | DONE |
-| 2 | CLI compat | encode, decode, version, stdin/stdout, auto-detect, `-o` | M |
-| 3 | 3a | Output format wiring (PNG/WebP/PDF) via `resvg`/`image` | DONE |
-| 4 | 3b | Command providers (Ditaa, Excalidraw, Wavedrom) | S each |
-| 5 | 3c | Pipeline providers (Vega, Vega-Lite) | S, M |
-| 6 | 3d | BPMN runtime wiring | M |
-| 7 | Server | Admin dashboard, RFC 7807, richer metrics | M |
-| 8 | CLI | Batch, font, cache, config flags | M |
-| 9 | 3e | Plugin system (`core/plugins`) | L |
-| 10 | Config | Per-tool config, adaptive timeout, cache layer | M |
+| 2 | CLI compat | encode, decode, version, stdin/stdout, auto-detect, `-o` | DONE |
+| 3 | 3a | Output format wiring (PNG/WebP) via `resvg`/`image` | DONE |
+| 4 | 3b | Command providers (Ditaa, Excalidraw, Wavedrom) | DONE |
+| 5 | 3c | Pipeline providers (Vega, Vega-Lite) | DONE |
+| 6 | 3d | BPMN runtime wiring | DONE |
+| 7 | Server | RFC 7807 error responses | DONE |
+| 8 | Server | Admin dashboard, richer metrics | M |
+| 9 | CLI | Batch, font, cache, config flags | M |
+| 10 | 3e | Plugin system (`core/plugins`) | L |
+| 11 | Config | Per-tool config, adaptive timeout, cache layer | M |
 
 **Effort key**: S = Small (1-2 days), M = Medium (3-5 days), L = Large (1-2 weeks)

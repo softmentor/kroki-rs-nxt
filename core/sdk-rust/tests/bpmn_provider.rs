@@ -34,18 +34,3 @@ async fn bpmn_provider_reports_feature_gate_without_native_browser() {
     );
 }
 
-#[cfg(feature = "native-browser")]
-#[tokio::test]
-async fn bpmn_provider_reports_pending_runtime_when_feature_enabled() {
-    let provider = BpmnProvider::new();
-    let result = provider
-        .generate(&request(
-            "<?xml version=\"1.0\"?><definitions></definitions>",
-        ))
-        .await
-        .expect_err("bpmn runtime is intentionally pending");
-    assert_eq!(
-        result.to_string(),
-        "Internal error: bpmn browser runtime not wired yet"
-    );
-}

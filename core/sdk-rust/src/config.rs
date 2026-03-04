@@ -2,6 +2,7 @@
 //!
 //! Runtime configuration loaded from `kroki.toml` with environment variable overrides.
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -139,6 +140,8 @@ pub struct BrowserConfig {
     pub pool_size: usize,
     #[serde(default = "default_context_ttl_requests")]
     pub context_ttl_requests: usize,
+    #[serde(default = "default_engine_urls")]
+    pub engine_urls: HashMap<String, String>,
 }
 
 impl Default for BrowserConfig {
@@ -146,6 +149,7 @@ impl Default for BrowserConfig {
         Self {
             pool_size: default_pool_size(),
             context_ttl_requests: default_context_ttl_requests(),
+            engine_urls: default_engine_urls(),
         }
     }
 }
@@ -311,4 +315,10 @@ fn default_pool_size() -> usize {
 }
 fn default_context_ttl_requests() -> usize {
     100
+}
+fn default_engine_urls() -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    map.insert("mermaid".to_string(), "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js".to_string());
+    map.insert("bpmn".to_string(), "https://unpkg.com/bpmn-js@17/dist/bpmn-viewer.development.js".to_string());
+    map
 }

@@ -14,11 +14,11 @@ pub struct BrowserManager {
 impl BrowserManager {
     /// Starts the preferred backend.
     /// In `native-browser` builds this is a headless_chrome/CDP backend.
-    pub async fn start(pool_size: usize, context_ttl_requests: usize) -> Result<Self> {
+    pub async fn start(pool_size: usize, context_ttl_requests: usize, engine_urls: &std::collections::HashMap<String, String>) -> Result<Self> {
         #[cfg(feature = "native-browser")]
         {
             let backend =
-                crate::browser::native::NativeBackend::new(pool_size, context_ttl_requests)
+                crate::browser::native::NativeBackend::new(pool_size, context_ttl_requests, engine_urls)
                     .await
                     .map_err(|err| anyhow!("native browser backend startup failed: {err}"))?;
 
@@ -29,7 +29,7 @@ impl BrowserManager {
 
         #[cfg(not(feature = "native-browser"))]
         {
-            let _ = (pool_size, context_ttl_requests);
+            let _ = (pool_size, context_ttl_requests, engine_urls);
             Err(anyhow!(
                 "browser rendering is disabled in this build. Rebuild with --features native-browser"
             ))

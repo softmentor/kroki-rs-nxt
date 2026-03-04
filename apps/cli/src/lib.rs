@@ -273,6 +273,32 @@ fn build_registry() -> DiagramRegistry {
             description: "Wavedrom command provider".to_string(),
         },
     );
+    registry.register_with_metadata(
+        "vega",
+        Arc::new(kroki_core::VegaProvider::new()),
+        ProviderMetadata {
+            provider_id: "vega".to_string(),
+            category: ProviderCategory::Pipeline,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "vg2svg".to_string(),
+            },
+            supported_formats: vec![OutputFormat::Svg],
+            description: "Vega pipeline provider".to_string(),
+        },
+    );
+    registry.register_with_metadata(
+        "vegalite",
+        Arc::new(kroki_core::VegaLiteProvider::new()),
+        ProviderMetadata {
+            provider_id: "vegalite".to_string(),
+            category: ProviderCategory::Pipeline,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "vl2vg".to_string(),
+            },
+            supported_formats: vec![OutputFormat::Svg],
+            description: "Vega-Lite pipeline provider".to_string(),
+        },
+    );
     registry
 }
 

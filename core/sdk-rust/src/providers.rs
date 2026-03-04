@@ -49,31 +49,12 @@ const MERMAID_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
 const BPMN_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
 
 #[cfg(feature = "native-browser")]
-fn browser_pool_size() -> usize {
-    std::env::var("KROKI_BROWSER_POOL_SIZE")
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|size| *size > 0)
-        .unwrap_or(4)
-}
-
-#[cfg(feature = "native-browser")]
-fn browser_context_ttl_requests() -> usize {
-    std::env::var("KROKI_BROWSER_CONTEXT_TTL_REQUESTS")
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|size| *size > 0)
-        .unwrap_or(100)
-}
-
-#[cfg(feature = "native-browser")]
 async fn browser_manager() -> DiagramResult<Arc<BrowserManager>> {
     static MANAGER: OnceCell<Arc<BrowserManager>> = OnceCell::const_new();
-    let pool_size = browser_pool_size();
-    let context_ttl = browser_context_ttl_requests();
     MANAGER
         .get_or_try_init(|| async move {
-            BrowserManager::start(pool_size, context_ttl)
+            let config = crate::config::Config::load(None).unwrap_or_default().browser;
+            BrowserManager::start(config.pool_size, config.context_ttl_requests, &config.engine_urls)
                 .await
                 .map(Arc::new)
                 .map_err(|err| {
@@ -625,9 +606,47 @@ impl DiagramProvider for BpmnProvider {
 
         #[cfg(feature = "native-browser")]
         {
-            return Err(DiagramError::Internal(
-                "bpmn browser runtime not wired yet".to_string(),
-            ));
+            let start = std::time::Instant::now();
+            let font_css = None; // BPMN doesn't use standard font injection right now
+            match browser_manager().await {
+                Ok(manager) => match manager
+                    .evaluate("bpmn", &request.source, "svg", font_css)
+                    .await
+                {
+                    Ok(rendered) => {
+                        let duration_ms = start.elapsed().as_millis() as u64;
+                        info!(
+                            provider = "bpmn",
+                            backend = "headless_chrome",
+                            duration_ms,
+                            "bpmn render completed"
+                        );
+                        Ok(DiagramResponse {
+                            data: rendered,
+                            content_type: "image/svg+xml".to_string(),
+                            duration_ms,
+                        })
+                    }
+                    Err(err) => {
+                        error!(
+                            provider = "bpmn",
+                            backend = "headless_chrome",
+                            error = %err,
+                            "native browser render failed"
+                        );
+                        Err(err)
+                    }
+                },
+                Err(err) => {
+                    error!(
+                        provider = "bpmn",
+                        backend = "headless_chrome",
+                        error = %err,
+                        "browser manager unavailable"
+                    );
+                    Err(DiagramError::Internal(format!("browser disconnected: {err}")))
+                }
+            }
         }
     }
 
@@ -706,7 +725,7 @@ impl DiagramProvider for DitaaProvider {
         
         child_cmd.arg(input_path.as_os_str()).arg(output_path.as_os_str());
 
-        let mut child = child_cmd
+        let child = child_cmd
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
@@ -966,5 +985,243 @@ impl DiagramProvider for WavedromProvider {
 
     fn supported_formats(&self) -> &[OutputFormat] {
         WAVEDROM_SUPPORTED_FORMATS
+    }
+}
+
+const VEGA_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
+const VEGALITE_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
+
+/// Pipeline-based Vega provider mapping `vg2svg`.
+pub struct VegaProvider {
+    binary: String,
+    default_timeout_ms: u64,
+}
+
+impl VegaProvider {
+    pub fn new() -> Self {
+        Self {
+            binary: "vg2svg".to_string(),
+            default_timeout_ms: 10_000,
+        }
+    }
+
+    pub fn with_binary(binary: impl Into<String>) -> Self {
+        Self {
+            binary: binary.into(),
+            default_timeout_ms: 10_000,
+        }
+    }
+}
+
+impl Default for VegaProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl DiagramProvider for VegaProvider {
+    fn validate(&self, source: &str) -> DiagramResult<()> {
+        if source.trim().is_empty() {
+            return Err(DiagramError::ValidationFailed(
+                "vega source must not be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: &DiagramRequest) -> DiagramResult<DiagramResponse> {
+        self.validate(&request.source)?;
+
+        if request.output_format != OutputFormat::Svg {
+            return Err(DiagramError::UnsupportedFormat {
+                format: format!("{:?}", request.output_format),
+                provider: "vega".to_string(),
+            });
+        }
+
+        let timeout_ms = request.options.timeout_ms.unwrap_or(self.default_timeout_ms);
+        debug!(provider = "vega", timeout_ms, "starting vg2svg execution");
+        let start = std::time::Instant::now();
+
+        let mut child = Command::new(&self.binary)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "vega", binary = %self.binary, "vg2svg binary is not available on host");
+                    DiagramError::ToolNotFound(self.binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        if let Some(stdin) = &mut child.stdin {
+            stdin.write_all(request.source.as_bytes()).await?;
+        }
+
+        let output = timeout(Duration::from_millis(timeout_ms), child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "vega", timeout_ms, "vega command timed out");
+                DiagramError::ExecutionTimeout { tool: self.binary.clone(), timeout_ms }
+            })??;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            error!(provider = "vega", stderr = %stderr, "vega process failed");
+            return Err(DiagramError::ProcessFailed(stderr));
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        info!(provider = "vega", duration_ms, "vega render completed");
+
+        Ok(DiagramResponse {
+            data: output.stdout,
+            content_type: request.output_format.content_type().to_string(),
+            duration_ms,
+        })
+    }
+
+    fn supported_formats(&self) -> &[OutputFormat] {
+        VEGA_SUPPORTED_FORMATS
+    }
+}
+
+/// Pipeline-based Vega-Lite provider mapping `vl2vg` directly into `vg2svg`.
+pub struct VegaLiteProvider {
+    vl_binary: String,
+    vg_binary: String,
+    default_timeout_ms: u64,
+}
+
+impl VegaLiteProvider {
+    pub fn new() -> Self {
+        Self {
+            vl_binary: "vl2vg".to_string(),
+            vg_binary: "vg2svg".to_string(),
+            default_timeout_ms: 10_000,
+        }
+    }
+
+    pub fn with_binaries(vl_binary: impl Into<String>, vg_binary: impl Into<String>) -> Self {
+        Self {
+            vl_binary: vl_binary.into(),
+            vg_binary: vg_binary.into(),
+            default_timeout_ms: 10_000,
+        }
+    }
+}
+
+impl Default for VegaLiteProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl DiagramProvider for VegaLiteProvider {
+    fn validate(&self, source: &str) -> DiagramResult<()> {
+        if source.trim().is_empty() {
+            return Err(DiagramError::ValidationFailed(
+                "vegalite source must not be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: &DiagramRequest) -> DiagramResult<DiagramResponse> {
+        self.validate(&request.source)?;
+
+        if request.output_format != OutputFormat::Svg {
+            return Err(DiagramError::UnsupportedFormat {
+                format: format!("{:?}", request.output_format),
+                provider: "vegalite".to_string(),
+            });
+        }
+
+        let timeout_ms = request.options.timeout_ms.unwrap_or(self.default_timeout_ms);
+        debug!(provider = "vegalite", timeout_ms, "starting vl2vg execution");
+        let start = std::time::Instant::now();
+
+        // Stage 1: vl2vg
+        let mut vl_child = Command::new(&self.vl_binary)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "vegalite", binary = %self.vl_binary, "vl2vg binary is not available on host");
+                    DiagramError::ToolNotFound(self.vl_binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        if let Some(stdin) = &mut vl_child.stdin {
+            stdin.write_all(request.source.as_bytes()).await?;
+        }
+
+        let vl_output = timeout(Duration::from_millis(timeout_ms), vl_child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "vegalite", timeout_ms, stage="vl2vg", "vegalite stage 1 command timed out");
+                DiagramError::ExecutionTimeout { tool: self.vl_binary.clone(), timeout_ms }
+            })??;
+
+        if !vl_output.status.success() {
+            let stderr = String::from_utf8_lossy(&vl_output.stderr).trim().to_string();
+            error!(provider = "vegalite", stderr = %stderr, "vegalite vl2vg process failed");
+            return Err(DiagramError::ProcessFailed(format!("vl2vg failed: {stderr}")));
+        }
+
+        // Stage 2: vg2svg
+        debug!(provider = "vegalite", timeout_ms, "starting vg2svg execution (stage 2)");
+        let mut vg_child = Command::new(&self.vg_binary)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "vegalite", binary = %self.vg_binary, "vg2svg binary is not available on host");
+                    DiagramError::ToolNotFound(self.vg_binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        if let Some(stdin) = &mut vg_child.stdin {
+            stdin.write_all(&vl_output.stdout).await?;
+        }
+
+        let vg_output = timeout(Duration::from_millis(timeout_ms), vg_child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "vegalite", timeout_ms, stage="vg2svg", "vegalite stage 2 command timed out");
+                DiagramError::ExecutionTimeout { tool: self.vg_binary.clone(), timeout_ms }
+            })??;
+
+        if !vg_output.status.success() {
+            let stderr = String::from_utf8_lossy(&vg_output.stderr).trim().to_string();
+            error!(provider = "vegalite", stderr = %stderr, "vegalite vg2svg process failed");
+            return Err(DiagramError::ProcessFailed(format!("vg2svg failed: {stderr}")));
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        info!(provider = "vegalite", duration_ms, "vegalite render pipeline completed");
+
+        Ok(DiagramResponse {
+            data: vg_output.stdout,
+            content_type: request.output_format.content_type().to_string(),
+            duration_ms,
+        })
+    }
+
+    fn supported_formats(&self) -> &[OutputFormat] {
+        VEGALITE_SUPPORTED_FORMATS
     }
 }

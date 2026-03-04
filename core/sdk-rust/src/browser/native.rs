@@ -46,8 +46,8 @@ pub struct NativeBackend {
 }
 
 impl NativeBackend {
-    pub async fn new(pool_size: usize, context_ttl_requests: usize) -> Result<Self, String> {
-        let (harness_url, harness_file) = Self::build_harness()?;
+    pub async fn new(pool_size: usize, context_ttl_requests: usize, engine_urls: &std::collections::HashMap<String, String>) -> Result<Self, String> {
+        let (harness_url, harness_file) = Self::build_harness(engine_urls)?;
         let browser = Self::spawn_browser().await?;
         Ok(Self {
             browser: Arc::new(RwLock::new(browser)),
@@ -61,18 +61,19 @@ impl NativeBackend {
         })
     }
 
-    fn build_harness() -> Result<(String, NamedTempFile), String> {
+    fn build_harness(engine_urls: &std::collections::HashMap<String, String>) -> Result<(String, NamedTempFile), String> {
         let mut temp_file = Builder::new()
             .suffix(".html")
             .tempfile()
             .map_err(|e| format!("failed to create harness file: {e}"))?;
 
-        let html = r#"<!doctype html>
+        let html = r##"<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <style id="kroki-fonts"></style>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="__MERMAID_URL__"></script>
+  <script src="__BPMN_URL__"></script>
 </head>
 <body>
   <div id="container"></div>
@@ -84,9 +85,25 @@ impl NativeBackend {
       const { svg } = await window.mermaid.render(id, source);
       return svg;
     };
+    
+    window.krokiRenderBpmn = async (source) => {
+        if (!window.BpmnJS) throw new Error("BPMN runtime unavailable");
+        document.getElementById("container").innerHTML = "";
+        const viewer = new window.BpmnJS({ container: "#container" });
+        await viewer.importXML(source);
+        const { svg } = await viewer.saveSVG();
+        return svg;
+    };
   </script>
 </body>
-</html>"#;
+</html>"##;
+
+        let mermaid_url = engine_urls.get("mermaid").map(|s| s.as_str()).unwrap_or("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js");
+        let bpmn_url = engine_urls.get("bpmn").map(|s| s.as_str()).unwrap_or("https://unpkg.com/bpmn-js@17/dist/bpmn-viewer.development.js");
+
+        let html = html
+            .replace("__MERMAID_URL__", mermaid_url)
+            .replace("__BPMN_URL__", bpmn_url);
 
         temp_file
             .write_all(html.as_bytes())
@@ -204,9 +221,25 @@ impl NativeBackend {
                     })?;
                 Ok(svg.into_bytes())
             }
-            "bpmn" => Err(DiagramError::Internal(
-                "bpmn browser runtime not wired yet".to_string(),
-            )),
+            "bpmn" => {
+                let render_expr = format!(
+                    "window.krokiRenderBpmn({})",
+                    serde_json::to_string(source).unwrap_or_else(|_| "\"\"".to_string())
+                );
+                let rendered = tab.evaluate(&render_expr, true).map_err(|e| {
+                    DiagramError::ProcessFailed(format!("render execution failed: {e}"))
+                })?;
+
+                let svg = rendered
+                    .value
+                    .and_then(|v| v.as_str().map(ToString::to_string))
+                    .ok_or_else(|| {
+                        DiagramError::ProcessFailed(
+                            "render returned null or non-string".to_string(),
+                        )
+                    })?;
+                Ok(svg.into_bytes())
+            }
             _ => Err(DiagramError::UnsupportedFormat {
                 provider: diagram_type.to_string(),
                 format: _format.to_string(),

@@ -23,7 +23,7 @@ pub use error::{DiagramError, DiagramResult};
 pub use ports::{DiagramOptions, DiagramProvider, DiagramRequest, DiagramResponse, OutputFormat};
 pub use providers::{
     BpmnProvider, D2Provider, DitaaProvider, EchoProvider, ExcalidrawProvider, GraphvizProvider,
-    MermaidProvider, WavedromProvider,
+    MermaidProvider, VegaLiteProvider, VegaProvider, WavedromProvider,
 };
 pub use services::{render_with_registry, DiagramRegistry};
 
