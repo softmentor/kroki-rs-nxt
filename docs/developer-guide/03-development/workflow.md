@@ -90,6 +90,19 @@ cargo build -p kroki-core
 cargo test -p kroki-core
 ```
 
+Frontend inner-loop (pnpm + Vite):
+
+```bash
+# Install JS workspace deps (first run or after package changes)
+pnpm install
+
+# Run web playground dev server
+pnpm --filter @kroki/web-app dev
+
+# Build frontend packages and web app
+pnpm -r --filter @kroki/runtime-wasm --filter @kroki/ui-tokens --filter @kroki/ui-components --filter @kroki/host-adapters --filter @kroki/app-playground --filter @kroki/web-app build
+```
+
 ### Before Submitting PR
 
 ```bash
@@ -267,7 +280,7 @@ registry.register("my-tool", Arc::new(MyToolProvider::new(config)));
    - Create `src/main.rs` entry point
 
 3. **For TypeScript surfaces** (web-app, vscode-ext):
-   - Add `package.json` with `@kroki/sdk` dependency
+   - Add `package.json` with required `@kroki/*` sdk-ts package dependencies
    - Add to `pnpm-workspace.yaml`
    - Set up build tooling (Vite, esbuild, etc.)
 

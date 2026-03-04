@@ -4,12 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
     "lint": "eslint \"src/**/*.ts\" && tsc --noEmit -p tsconfig.json",
     "test": "node --test tests/*.test.js",
     "test:unit": "npm run test",
     "test:integration": "npm run test",
     "fmt:check": "echo \"@kroki/web-app fmt:check baseline\"",
     "fmt:fix": "echo \"@kroki/web-app fmt:fix baseline\""
+  },
+  "dependencies": {
+    "@kroki/app-playground": "workspace:*",
+    "@kroki/host-adapters": "workspace:*",
+    "@kroki/runtime-wasm": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.2.1"
   }
 }

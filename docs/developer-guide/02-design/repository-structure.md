@@ -23,7 +23,13 @@ kroki-rs-nxt/
 ├── core/                           # Pure domain logic & SDKs
 │   ├── sdk-rust/                   # Core business logic and ports
 │   ├── plugins/                    # Plugin framework crate
-│   └── sdk-ts/                     # TS/Wasm SDK baseline package (planned feature expansion)
+│   └── sdk-ts/                     # TS multi-package workspace (active bootstrap)
+│       └── packages/
+│           ├── runtime-wasm/       # Runtime contract boundary + wasm bridge stubs
+│           ├── ui-tokens/          # Shared tokens/theme primitives
+│           ├── ui-components/      # Shared Lit components
+│           ├── host-adapters/      # Host integration boundaries
+│           └── app-playground/     # Composed playground app shell
 │
 ├── adapters/                       # Infrastructure implementations
 │   ├── storage/                    # Storage adapter crate
@@ -107,11 +113,16 @@ flowchart TB
 
 | Member Path | Package Name | Status | Layer |
 |-------------|-------------|--------|-------|
-| `core/sdk-ts` | `@kroki/sdk` | Bootstrap baseline package | Core |
+| `core/sdk-ts` | `@kroki/sdk-ts-workspace` | Active nested workspace | Core |
+| `core/sdk-ts/packages/runtime-wasm` | `@kroki/runtime-wasm` | Active bootstrap package | Core |
+| `core/sdk-ts/packages/ui-tokens` | `@kroki/ui-tokens` | Active bootstrap package | Core |
+| `core/sdk-ts/packages/ui-components` | `@kroki/ui-components` | Active bootstrap package | Core |
+| `core/sdk-ts/packages/host-adapters` | `@kroki/host-adapters` | Active bootstrap package | Core |
+| `core/sdk-ts/packages/app-playground` | `@kroki/app-playground` | Active bootstrap package | Core |
 | `apps/desktop/src` | `@kroki/desktop-ui` | Bootstrap baseline package | App |
 | `apps/myst-plugin` | `@kroki/myst-plugin` | Bootstrap baseline package | App |
 | `apps/vscode-ext` | `@kroki/vscode` | Bootstrap baseline package | App |
-| `apps/web-app` | `@kroki/web-app` | Bootstrap baseline package | App |
+| `apps/web-app` | `@kroki/web-app` | Active Vite surface bootstrap | App |
 | `shared/design-system` | `@kroki/design-system` | Bootstrap baseline package | Shared |
 
 ---
@@ -138,7 +149,12 @@ Pattern: `@kroki/<name>`
 
 | Package | Description |
 |---------|-------------|
-| `@kroki/sdk` | Wasm bindings for core logic |
+| `@kroki/sdk-ts-workspace` | Nested workspace orchestration package for sdk-ts modules |
+| `@kroki/runtime-wasm` | Runtime request/response contracts and wasm bridge interface |
+| `@kroki/ui-tokens` | Shared theme tokens and palette primitives |
+| `@kroki/ui-components` | Shared Lit UI component modules |
+| `@kroki/host-adapters` | Host adapter interfaces and implementations |
+| `@kroki/app-playground` | Composed playground app package |
 | `@kroki/desktop-ui` | Tauri Lit frontend |
 | `@kroki/myst-plugin` | MyST plugin integration surface |
 | `@kroki/vscode` | VS Code extension |

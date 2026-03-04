@@ -63,6 +63,13 @@ TypeScript:
 - Unit/integration tests inside each package (co-located or package `tests/`)
 - Keep package scripts consistent: `build`, `lint`, `test`
 
+Frontend package baseline:
+- `@kroki/runtime-wasm`: runtime contract behavior and capability list tests
+- `@kroki/ui-tokens`: theme-application behavior tests
+- `@kroki/host-adapters`: runtime forwarding and HTTP status/error mapping tests
+- `@kroki/app-playground`: revision/cancellation render-flow utility tests
+- `@kroki/web-app`: surface bootstrap smoke tests
+
 ## Fixture, Config, and Resource Handling
 
 ### Fixtures (`tests/fixtures/`)
@@ -134,6 +141,14 @@ dwf check:pr
 ```bash
 cargo test -p kroki-core
 cargo test -p kroki-server
+```
+
+### Frontend package verification
+
+```bash
+pnpm -r --filter @kroki/runtime-wasm --filter @kroki/ui-tokens --filter @kroki/host-adapters --filter @kroki/app-playground --filter @kroki/web-app build
+pnpm -r --filter @kroki/runtime-wasm --filter @kroki/ui-tokens --filter @kroki/host-adapters --filter @kroki/app-playground --filter @kroki/web-app lint
+pnpm -r --filter @kroki/runtime-wasm --filter @kroki/ui-tokens --filter @kroki/host-adapters --filter @kroki/app-playground --filter @kroki/web-app test
 ```
 
 ## CI Guidance

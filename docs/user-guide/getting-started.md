@@ -247,6 +247,18 @@ Playground supports:
 - optional auto-render while editing
 - dark/light theme switch
 
+## Run Web App Surface
+
+For the standalone frontend surface (`@kroki/web-app`) with host-native and host-container run steps, see:
+
+- [Web App User Guide](#kroki-rs-nxt.user-guide.web-app)
+
+Quick container start:
+
+```bash
+./scripts/run-web-app-container.sh
+```
+
 ## Admin Endpoints
 
 Default admin address is `http://127.0.0.1:8081` in dev mode.

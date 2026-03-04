@@ -1,15 +1,18 @@
 {
-  "name": "@kroki/sdk",
+  "name": "@kroki/sdk-ts-workspace",
   "version": "0.1.0-alpha.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "eslint \"src/**/*.ts\" && tsc --noEmit -p tsconfig.json",
-    "test": "node --test tests/*.test.js",
-    "test:unit": "npm run test",
-    "test:integration": "npm run test",
-    "fmt:check": "echo \"@kroki/sdk fmt:check baseline\"",
-    "fmt:fix": "echo \"@kroki/sdk fmt:fix baseline\""
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:unit": "npm run test --workspaces --if-present",
+    "test:integration": "npm run test --workspaces --if-present",
+    "fmt:check": "npm run fmt:check --workspaces --if-present",
+    "fmt:fix": "npm run fmt:fix --workspaces --if-present"
   }
 }

@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.0",
   "workspaces": [
     "core/sdk-ts",
+    "core/sdk-ts/packages/*",
     "apps/desktop/src",
     "apps/myst-plugin",
     "apps/vscode-ext",

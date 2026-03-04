@@ -1,1 +1,1 @@
-export const packageName = '@kroki/sdk';
+export const packageName = '@kroki/sdk-ts-workspace';

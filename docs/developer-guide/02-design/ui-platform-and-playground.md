@@ -62,6 +62,56 @@ Surface consumption:
 
 ---
 
+## Current Implemented Structure (Bootstrap)
+
+The following package layout is now scaffolded in-repo and is the baseline for active frontend development:
+
+```text
+core/sdk-ts/
+  package.json                  # nested workspace root for sdk-ts packages
+  packages/
+    runtime-wasm/
+      src/index.ts              # typed render contracts + bridge stub
+    ui-tokens/
+      src/index.ts              # token APIs + theme switch helper
+      src/theme.css             # design token CSS variables
+    ui-components/
+      src/base-styles.ts
+      src/kroki-topbar.ts
+      src/kroki-sidebar.ts
+      src/kroki-editor-pane.ts
+      src/kroki-preview-pane.ts
+      src/kroki-status-bar.ts
+      src/index.ts
+    host-adapters/
+      src/index.ts              # runtime adapter + HTTP adapter contracts
+    app-playground/
+      src/index.ts              # composed 3-pane playground shell + state flow
+```
+
+Web surface bootstrap now consumes these packages:
+
+```text
+apps/web-app/
+  index.html
+  vite.config.ts
+  src/main.ts                   # mounts <kroki-playground> with host adapter
+```
+
+---
+
+## Package Responsibilities (Implemented)
+
+| Package | Primary Responsibility | Notes |
+|---------|------------------------|-------|
+| `@kroki/runtime-wasm` | Canonical TS runtime request/response contracts | Includes `RuntimeBridgeStub` for UI-first iterations before full WASM binding lands |
+| `@kroki/ui-tokens` | Theme tokens and palette primitives | Owns `theme.css` and `applyTheme` helper |
+| `@kroki/ui-components` | Reusable host-neutral Lit elements | No host API calls allowed |
+| `@kroki/host-adapters` | Host integration boundary | Includes runtime bridge adapter and server HTTP adapter |
+| `@kroki/app-playground` | End-to-end playground composition | Owns orchestration, revision/cancellation flow, and component wiring |
+
+---
+
 ## Layered Architecture
 
 ```mermaid
@@ -271,6 +321,55 @@ This is required to enforce your style-guide parity across all surfaces.
 - Keep rendering and complex logic in Rust.
 - Expose stable TS runtime contract through `runtime-wasm`.
 - Treat runtime bridge API as a versioned boundary (avoid ad-hoc method growth).
+
+---
+
+## Frontend Build and Packaging Workflow
+
+Use `pnpm` as the default package manager for frontend development.
+
+### Install and bootstrap
+
+```bash
+pnpm install
+```
+
+### Develop playground locally
+
+```bash
+pnpm --filter @kroki/web-app dev
+```
+
+### Build all sdk-ts packages + web app
+
+```bash
+pnpm -r --filter @kroki/runtime-wasm --filter @kroki/ui-tokens --filter @kroki/ui-components --filter @kroki/host-adapters --filter @kroki/app-playground --filter @kroki/web-app build
+```
+
+### Build specific packages during iteration
+
+```bash
+pnpm --filter @kroki/ui-components build
+pnpm --filter @kroki/app-playground build
+pnpm --filter @kroki/web-app build
+```
+
+Packaging outputs:
+
+- sdk-ts packages emit distributable artifacts under each package `dist/`
+- `apps/web-app` emits production assets under `apps/web-app/dist/` via Vite
+
+---
+
+## Developer Implementation Notes
+
+- `app-playground` is the only package allowed to compose complete page layout behavior.
+- UI components should emit typed events and remain presentation-focused.
+- Host/network/runtime side effects belong in `host-adapters`.
+- Runtime contract changes must update:
+  - `@kroki/runtime-wasm` types
+  - adapter mappings
+  - design docs and execution tracker entries
 
 ---
 

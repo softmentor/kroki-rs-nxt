@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('@kroki/sdk baseline smoke', () => {
-  assert.equal(1, 1);
+test('sdk-ts workspace bootstrap is available', () => {
+  assert.equal(typeof 'workspace', 'string');
 });

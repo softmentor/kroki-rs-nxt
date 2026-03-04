@@ -224,6 +224,7 @@ pub fn app_with_config(config: &Config) -> Router {
 pub fn admin_app(metrics: Option<PrometheusHandle>) -> Router {
     let state = AdminState { metrics };
     Router::new()
+        .route("/", axum::routing::get(admin_dashboard_handler))
         .route("/health", axum::routing::get(health_handler))
         .route("/metrics", axum::routing::get(metrics_handler))
         .with_state(state)
@@ -231,6 +232,10 @@ pub fn admin_app(metrics: Option<PrometheusHandle>) -> Router {
 
 async fn playground_handler() -> Html<String> {
     Html(PLAYGROUND_HTML_TEMPLATE.replace("__KROKI_SHARED_THEME__", SHARED_THEME_CSS))
+}
+
+async fn admin_dashboard_handler() -> Html<String> {
+    Html(ADMIN_HTML_TEMPLATE.replace("__KROKI_SHARED_THEME__", SHARED_THEME_CSS))
 }
 
 async fn render_handler(
@@ -271,6 +276,7 @@ async fn render_handler(
                     cb.record_failure(&diagram_type);
                 }
             }
+            metrics::counter!("kroki_render_requests_total", "diagram_type" => diagram_type.clone(), "status" => "error").increment(1);
             warn!(error = %err, "render request rejected");
             diagram_error_to_problem(&err)
         })?;
@@ -289,6 +295,10 @@ async fn render_handler(
     if let Some(cb) = state.policies.circuit_breaker.as_ref() {
         cb.record_success(&diagram_type);
     }
+
+    metrics::counter!("kroki_render_requests_total", "diagram_type" => diagram_type.clone(), "status" => "success").increment(1);
+    metrics::histogram!("kroki_render_duration_milliseconds", "diagram_type" => diagram_type.clone()).record(response.duration_ms as f64);
+    metrics::histogram!("kroki_output_size_bytes", "diagram_type" => diagram_type.clone()).record(response.data.len() as f64);
 
     info!(content_type = %response.content_type, "render request completed");
     Ok(Json(serde_json::json!({
@@ -343,6 +353,7 @@ async fn execute_and_respond_raw(
                     cb.record_failure(&diagram_type);
                 }
             }
+            metrics::counter!("kroki_render_requests_total", "diagram_type" => diagram_type.clone(), "status" => "error").increment(1);
             warn!(error = %err, "render request rejected");
             diagram_error_to_problem(&err)
         })?;
@@ -362,6 +373,10 @@ async fn execute_and_respond_raw(
     if let Some(cb) = state.policies.circuit_breaker.as_ref() {
         cb.record_success(&diagram_type);
     }
+
+    metrics::counter!("kroki_render_requests_total", "diagram_type" => diagram_type.clone(), "status" => "success").increment(1);
+    metrics::histogram!("kroki_render_duration_milliseconds", "diagram_type" => diagram_type.clone()).record(response.duration_ms as f64);
+    metrics::histogram!("kroki_output_size_bytes", "diagram_type" => diagram_type.clone()).record(response.data.len() as f64);
 
     info!(content_type = %response.content_type, "render request completed");
 
@@ -526,6 +541,48 @@ async fn metrics_handler(State(state): State<AdminState>) -> Result<String, (Sta
 }
 
 const SHARED_THEME_CSS: &str = include_str!("../../../shared/design-system/src/theme.css");
+
+const ADMIN_HTML_TEMPLATE: &str = r#"<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>kroki Admin Dashboard</title>
+    <style>
+      __KROKI_SHARED_THEME__
+      * { display: block; box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; color: var(--text-main); font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background: radial-gradient(1200px 640px at 10% -20%, rgba(255, 179, 15, 0.16), transparent), radial-gradient(800px 540px at 90% -10%, rgba(255, 111, 97, 0.16), transparent), var(--bg-deep);
+      }
+      .shell { max-width: 900px; margin: 40px auto; padding: 14px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; backdrop-filter: var(--glass-surface); background: rgba(17, 14, 39, 0.78); border: 1px solid rgba(255, 179, 15, 0.22); border-radius: 999px; margin-bottom: 24px; }
+      .brand { display: flex; align-items: center; gap: 10px; }
+      .brand-dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent-primary); box-shadow: var(--glow); }
+      .brand h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.02em; }
+      .panel { border: 1px solid transparent; border-image: var(--border-glow) 1; border-radius: 18px; padding: 24px; background: var(--bg-card); backdrop-filter: var(--glass-surface); }
+      .panel-title { margin: 0 0 16px; font-size: 1.1rem; color: var(--accent-secondary); letter-spacing: 0.02em; }
+      pre { background: rgba(0,0,0,0.5); padding: 16px; border-radius: 8px; overflow-x: auto; color: var(--text-muted); font-family: monospace; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <h1>kroki-rs-nxt Admin</h1>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Metrics Overview</h2>
+        <pre id="metrics-view">Loading metrics...</pre>
+      </div>
+    </div>
+    <script>
+      fetch('/metrics').then(x => x.text()).then(t => document.getElementById('metrics-view').textContent = t).catch(console.error);
+    </script>
+  </body>
+</html>"#;
 
 const PLAYGROUND_HTML_TEMPLATE: &str = r#"<!doctype html>
 <html lang="en">
@@ -1392,6 +1449,28 @@ mod tests {
             .await
             .expect("app should handle request");
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn integration_admin_dashboard_route_returns_html() {
+        let app = super::admin_app(None);
+        let request = Request::builder()
+            .method("GET")
+            .uri("/")
+            .body(Body::empty())
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(body.contains("<!doctype html>"));
+        assert!(body.contains("Metrics Overview"));
     }
 
     #[tokio::test]

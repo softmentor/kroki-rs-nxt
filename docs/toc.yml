@@ -9,6 +9,7 @@ project:
       children:
         - file: user-guide/features.md
         - file: user-guide/configuration.md
+        - file: user-guide/web-app.md
     - title: Developer Guide
       file: developer-guide/index.md
       children:
