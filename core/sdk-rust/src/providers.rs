@@ -106,7 +106,7 @@ impl DiagramProvider for EchoProvider {
         }
 
         let payload = format!(
-            "<svg><!-- bootstrap-echo:{}:{} --></svg>",
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><!-- bootstrap-echo:{}:{} --></svg>"#,
             request.diagram_type, request.source
         );
 
@@ -633,5 +633,338 @@ impl DiagramProvider for BpmnProvider {
 
     fn supported_formats(&self) -> &[OutputFormat] {
         BPMN_SUPPORTED_FORMATS
+    }
+}
+
+const DITAA_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Png, OutputFormat::Svg];
+const EXCALIDRAW_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
+const WAVEDROM_SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Svg];
+
+/// Command-based Ditaa provider for Batch 3.1 parity progression.
+pub struct DitaaProvider {
+    binary: String,
+    default_timeout_ms: u64,
+}
+
+impl DitaaProvider {
+    pub fn new() -> Self {
+        Self {
+            binary: "ditaa".to_string(),
+            default_timeout_ms: 5_000,
+        }
+    }
+
+    pub fn with_binary(binary: impl Into<String>) -> Self {
+        Self {
+            binary: binary.into(),
+            default_timeout_ms: 5_000,
+        }
+    }
+}
+
+impl Default for DitaaProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl DiagramProvider for DitaaProvider {
+    fn validate(&self, source: &str) -> DiagramResult<()> {
+        if source.trim().is_empty() {
+            return Err(DiagramError::ValidationFailed(
+                "ditaa source must not be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: &DiagramRequest) -> DiagramResult<DiagramResponse> {
+        self.validate(&request.source)?;
+
+        if request.output_format != OutputFormat::Svg && request.output_format != OutputFormat::Png {
+            return Err(DiagramError::UnsupportedFormat {
+                format: format!("{:?}", request.output_format),
+                provider: "ditaa".to_string(),
+            });
+        }
+
+        let timeout_ms = request.options.timeout_ms.unwrap_or(self.default_timeout_ms);
+        let temp_dir = tempfile::tempdir()?;
+        let input_path = temp_dir.path().join("diagram.ditaa");
+        let ext = if request.output_format == OutputFormat::Svg { "svg" } else { "png" };
+        let output_path = temp_dir.path().join(format!("diagram.{ext}"));
+        std::fs::write(&input_path, request.source.as_bytes())?;
+
+        debug!(provider = "ditaa", timeout_ms, "starting ditaa command execution");
+        let start = std::time::Instant::now();
+        let mut child_cmd = Command::new(&self.binary);
+        
+        if request.output_format == OutputFormat::Svg {
+            child_cmd.arg("--svg");
+        }
+        
+        child_cmd.arg(input_path.as_os_str()).arg(output_path.as_os_str());
+
+        let mut child = child_cmd
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "ditaa", binary = %self.binary, "ditaa binary is not available on host");
+                    DiagramError::ToolNotFound(self.binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        let output = timeout(Duration::from_millis(timeout_ms), child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "ditaa", timeout_ms, "ditaa command timed out");
+                DiagramError::ExecutionTimeout { tool: self.binary.clone(), timeout_ms }
+            })??;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            error!(provider = "ditaa", stderr = %stderr, "ditaa process failed");
+            return Err(DiagramError::ProcessFailed(stderr));
+        }
+
+        let rendered = std::fs::read(&output_path).map_err(|err| {
+            DiagramError::Internal(format!(
+                "ditaa succeeded but output file '{}' was unreadable: {err}",
+                output_path.display()
+            ))
+        })?;
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        info!(provider = "ditaa", duration_ms, "ditaa render completed");
+
+        let content_type = if request.output_format == OutputFormat::Svg {
+            "image/svg+xml".to_string()
+        } else {
+            "image/png".to_string()
+        };
+
+        Ok(DiagramResponse {
+            data: rendered,
+            content_type,
+            duration_ms,
+        })
+    }
+
+    fn supported_formats(&self) -> &[OutputFormat] {
+        DITAA_SUPPORTED_FORMATS
+    }
+}
+
+/// Command-based Excalidraw provider for Batch 3.1 parity progression.
+pub struct ExcalidrawProvider {
+    binary: String,
+    default_timeout_ms: u64,
+}
+
+impl ExcalidrawProvider {
+    pub fn new() -> Self {
+        Self {
+            binary: "excalidraw".to_string(),
+            default_timeout_ms: 5_000,
+        }
+    }
+
+    pub fn with_binary(binary: impl Into<String>) -> Self {
+        Self {
+            binary: binary.into(),
+            default_timeout_ms: 5_000,
+        }
+    }
+}
+
+impl Default for ExcalidrawProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl DiagramProvider for ExcalidrawProvider {
+    fn validate(&self, source: &str) -> DiagramResult<()> {
+        if source.trim().is_empty() {
+            return Err(DiagramError::ValidationFailed(
+                "excalidraw source must not be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: &DiagramRequest) -> DiagramResult<DiagramResponse> {
+        self.validate(&request.source)?;
+
+        if request.output_format != OutputFormat::Svg {
+            return Err(DiagramError::UnsupportedFormat {
+                format: format!("{:?}", request.output_format),
+                provider: "excalidraw".to_string(),
+            });
+        }
+
+        let timeout_ms = request.options.timeout_ms.unwrap_or(self.default_timeout_ms);
+        debug!(provider = "excalidraw", timeout_ms, "starting excalidraw command execution");
+
+        let start = std::time::Instant::now();
+        let mut child = Command::new(&self.binary)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "excalidraw", binary = %self.binary, "excalidraw binary is not available on host");
+                    DiagramError::ToolNotFound(self.binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        if let Some(stdin) = &mut child.stdin {
+            stdin.write_all(request.source.as_bytes()).await?;
+        }
+
+        let output = timeout(Duration::from_millis(timeout_ms), child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "excalidraw", timeout_ms, "excalidraw command timed out");
+                DiagramError::ExecutionTimeout { tool: self.binary.clone(), timeout_ms }
+            })??;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            error!(provider = "excalidraw", stderr = %stderr, "excalidraw process failed");
+            return Err(DiagramError::ProcessFailed(stderr));
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        info!(provider = "excalidraw", duration_ms, "excalidraw render completed");
+
+        Ok(DiagramResponse {
+            data: output.stdout,
+            content_type: "image/svg+xml".to_string(),
+            duration_ms,
+        })
+    }
+
+    fn supported_formats(&self) -> &[OutputFormat] {
+        EXCALIDRAW_SUPPORTED_FORMATS
+    }
+}
+
+
+/// Command-based Wavedrom provider for Batch 3.1 parity progression.
+pub struct WavedromProvider {
+    binary: String,
+    default_timeout_ms: u64,
+}
+
+impl WavedromProvider {
+    pub fn new() -> Self {
+        Self {
+            binary: "wavedrom-cli".to_string(),
+            default_timeout_ms: 5_000,
+        }
+    }
+
+    pub fn with_binary(binary: impl Into<String>) -> Self {
+        Self {
+            binary: binary.into(),
+            default_timeout_ms: 5_000,
+        }
+    }
+}
+
+impl Default for WavedromProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl DiagramProvider for WavedromProvider {
+    fn validate(&self, source: &str) -> DiagramResult<()> {
+        if source.trim().is_empty() {
+            return Err(DiagramError::ValidationFailed(
+                "wavedrom source must not be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: &DiagramRequest) -> DiagramResult<DiagramResponse> {
+        self.validate(&request.source)?;
+
+        if request.output_format != OutputFormat::Svg {
+            return Err(DiagramError::UnsupportedFormat {
+                format: format!("{:?}", request.output_format),
+                provider: "wavedrom".to_string(),
+            });
+        }
+
+        let timeout_ms = request.options.timeout_ms.unwrap_or(self.default_timeout_ms);
+        let temp_dir = tempfile::tempdir()?;
+        let input_path = temp_dir.path().join("diagram.json");
+        let output_path = temp_dir.path().join("diagram.svg");
+        std::fs::write(&input_path, request.source.as_bytes())?;
+
+        debug!(provider = "wavedrom", timeout_ms, "starting wavedrom command execution");
+        let start = std::time::Instant::now();
+        let child = Command::new(&self.binary)
+            .arg("-i")
+            .arg(input_path.as_os_str())
+            .arg("-s")
+            .arg(output_path.as_os_str())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    warn!(provider = "wavedrom", binary = %self.binary, "wavedrom binary is not available on host");
+                    DiagramError::ToolNotFound(self.binary.clone())
+                } else {
+                    DiagramError::Io(err)
+                }
+            })?;
+
+        let output = timeout(Duration::from_millis(timeout_ms), child.wait_with_output())
+            .await
+            .map_err(|_| {
+                warn!(provider = "wavedrom", timeout_ms, "wavedrom command timed out");
+                DiagramError::ExecutionTimeout { tool: self.binary.clone(), timeout_ms }
+            })??;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            error!(provider = "wavedrom", stderr = %stderr, "wavedrom process failed");
+            return Err(DiagramError::ProcessFailed(stderr));
+        }
+
+        let rendered = std::fs::read(&output_path).map_err(|err| {
+            DiagramError::Internal(format!(
+                "wavedrom succeeded but output file '{}' was unreadable: {err}",
+                output_path.display()
+            ))
+        })?;
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        info!(provider = "wavedrom", duration_ms, "wavedrom render completed");
+
+        Ok(DiagramResponse {
+            data: rendered,
+            content_type: "image/svg+xml".to_string(),
+            duration_ms,
+        })
+    }
+
+    fn supported_formats(&self) -> &[OutputFormat] {
+        WAVEDROM_SUPPORTED_FORMATS
     }
 }

@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
         .with_file(true)
         .with_line_number(true)
         .with_env_filter(env_filter)
+        .with_writer(std::io::stderr)
         .init();
 
     tracing::info!(

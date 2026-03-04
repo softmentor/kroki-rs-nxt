@@ -2,6 +2,9 @@
 //!
 //! Ports define the interfaces that adapters implement.
 
+use std::fmt;
+use std::str::FromStr;
+
 use async_trait::async_trait;
 
 use crate::error::DiagramResult;
@@ -13,6 +16,48 @@ pub enum OutputFormat {
     Png,
     WebP,
     Pdf,
+}
+
+impl OutputFormat {
+    /// Return the MIME content type for this format.
+    pub fn content_type(&self) -> &'static str {
+        match self {
+            OutputFormat::Svg => "image/svg+xml",
+            OutputFormat::Png => "image/png",
+            OutputFormat::WebP => "image/webp",
+            OutputFormat::Pdf => "application/pdf",
+        }
+    }
+
+    /// Return the file extension for this format.
+    pub fn extension(&self) -> &'static str {
+        match self {
+            OutputFormat::Svg => "svg",
+            OutputFormat::Png => "png",
+            OutputFormat::WebP => "webp",
+            OutputFormat::Pdf => "pdf",
+        }
+    }
+}
+
+impl fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.extension())
+    }
+}
+
+impl FromStr for OutputFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "svg" => Ok(OutputFormat::Svg),
+            "png" => Ok(OutputFormat::Png),
+            "webp" => Ok(OutputFormat::WebP),
+            "pdf" => Ok(OutputFormat::Pdf),
+            other => Err(format!("unsupported output format: '{other}'")),
+        }
+    }
 }
 
 /// Request to generate a diagram.

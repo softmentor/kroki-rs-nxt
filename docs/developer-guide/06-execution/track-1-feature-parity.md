@@ -40,9 +40,9 @@ Reference: [docs.kroki.io/kroki/setup/http-clients](https://docs.kroki.io/kroki/
 
 | Endpoint | Method | Body | Status |
 |----------|--------|------|--------|
-| `/{type}/{format}` | POST | Raw text (`Content-Type: text/plain`) | - [ ] Gap |
-| `/` | POST | JSON `{"diagram_type", "output_format", "diagram_source"}` | - [ ] Gap |
-| `/{type}/{format}/{encoded}` | GET | Base64+Deflate encoded source in URL | - [ ] Gap |
+| `/{type}/{format}` | POST | Raw text (`Content-Type: text/plain`) | - [x] Parity |
+| `/` | POST | JSON `{"diagram_type", "output_format", "diagram_source"}` | - [x] Parity |
+| `/{type}/{format}/{encoded}` | GET | Base64+Deflate encoded source in URL | - [x] Parity |
 
 ### Current State
 
@@ -113,9 +113,9 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 | Format | kroki-rs | kroki-rs-nxt | Status |
 |--------|----------|--------------|--------|
 | SVG | All providers | 3 providers | - [ ] Partial |
-| PNG | 6 providers | Declared but not wired | - [ ] Gap |
+| PNG | 6 providers | Core wiring complete | - [x] Parity |
 | PDF | 4 providers | Declared but not wired | - [ ] Gap |
-| WebP | Post-processing (SVG/PNG → WebP) | Deps present, not wired | - [ ] Gap |
+| WebP | Post-processing (SVG/PNG → WebP) | Core wiring complete | - [x] Parity |
 
 `OutputFormat` enum declares SVG/PNG/WebP/PDF. `resvg` and `image` crate dependencies exist. Conversion logic needs wiring.
 
@@ -125,9 +125,9 @@ Reference: [docs.kroki.io/kroki/setup/kroki-cli](https://docs.kroki.io/kroki/set
 
 | Feature | kroki-rs | kroki-rs-nxt | Status |
 |---------|----------|--------------|--------|
-| POST render (raw text) | `/{type}/{format}` | `/render` (JSON) | - [ ] Different API — migrate |
-| GET diagram (URL-encoded) | `/{type}/{format}/{encoded}` | N/A | - [ ] Gap |
-| POST render (JSON) | N/A | `/render` | - [ ] Needs standard shape |
+| POST render (raw text) | `/{type}/{format}` | `/render` (JSON) and `/{type}/{format}` | - [x] Parity |
+| GET diagram (URL-encoded) | `/{type}/{format}/{encoded}` | `/{type}/{format}/{encoded}` | - [x] Parity |
+| POST render (JSON) | N/A | `/` and `/render` | - [x] Parity |
 | Playground | N/A | `/playground` | - [x] New improvement |
 | Capabilities | N/A | `/capabilities` JSON | - [x] New improvement |
 | Health | JSON with pool health | JSON with status/version | - [ ] Partial (no pool health) |
@@ -242,9 +242,9 @@ Cache namespacing: Configurable at runtime via `kroki.toml` or env var, with a s
 
 | Priority | Batch | Description | Effort |
 |----------|-------|-------------|--------|
-| 1 | API compat | Standard kroki endpoints (POST raw, POST JSON, GET encoded) | M |
+| 1 | API compat | Standard kroki endpoints (POST raw, POST JSON, GET encoded) | DONE |
 | 2 | CLI compat | encode, decode, version, stdin/stdout, auto-detect, `-o` | M |
-| 3 | 3a | Output format wiring (PNG/WebP/PDF) via `resvg`/`image` | M |
+| 3 | 3a | Output format wiring (PNG/WebP/PDF) via `resvg`/`image` | DONE |
 | 4 | 3b | Command providers (Ditaa, Excalidraw, Wavedrom) | S each |
 | 5 | 3c | Pipeline providers (Vega, Vega-Lite) | S, M |
 | 6 | 3d | BPMN runtime wiring | M |

@@ -10,6 +10,7 @@
 //! This crate now contains the Phase 2 bootstrap vertical slice mapping:
 //! request DTO -> core request -> provider invocation -> transport response DTO.
 
+pub mod conversion;
 pub mod middleware;
 
 use kroki_core::{
@@ -44,15 +45,51 @@ pub enum PayloadEncoding {
 }
 
 /// Transport-facing render response DTO.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+///
+/// `data` holds raw bytes: UTF-8 text for SVG, binary for PNG/WebP/PDF.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderResponseDto {
-    pub data: String,
+    pub data: Vec<u8>,
     pub content_type: String,
     pub duration_ms: u64,
 }
 
+impl RenderResponseDto {
+    /// Return the data as a UTF-8 string (lossy) for text-based formats.
+    pub fn data_as_string(&self) -> String {
+        String::from_utf8_lossy(&self.data).to_string()
+    }
+}
+
 fn default_output_format() -> OutputFormat {
     OutputFormat::Svg
+}
+
+/// Standard Kroki JSON request DTO (compatible with original Kroki API `POST /`).
+///
+/// Reference: <https://docs.kroki.io/kroki/setup/http-clients/>
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct KrokiJsonRequestDto {
+    pub diagram_type: String,
+    pub output_format: String,
+    pub diagram_source: String,
+}
+
+impl KrokiJsonRequestDto {
+    /// Convert into a `RenderRequestDto` for unified processing.
+    pub fn into_render_request(self) -> DiagramResult<RenderRequestDto> {
+        let output_format: OutputFormat = self
+            .output_format
+            .parse()
+            .map_err(|e: String| DiagramError::ValidationFailed(e))?;
+        Ok(RenderRequestDto {
+            source: self.diagram_source,
+            source_encoded: None,
+            source_encoding: PayloadEncoding::Plain,
+            diagram_type: self.diagram_type,
+            output_format,
+        })
+    }
 }
 
 impl RenderRequestDto {
@@ -87,7 +124,7 @@ impl RenderRequestDto {
 impl From<DiagramResponse> for RenderResponseDto {
     fn from(value: DiagramResponse) -> Self {
         Self {
-            data: String::from_utf8_lossy(&value.data).to_string(),
+            data: value.data,
             content_type: value.content_type,
             duration_ms: value.duration_ms,
         }
@@ -95,16 +132,28 @@ impl From<DiagramResponse> for RenderResponseDto {
 }
 
 /// Execute render orchestration through the core registry and return a transport DTO.
+///
+/// Providers always produce SVG. If the requested output format is PNG or WebP,
+/// the transport layer converts the SVG to the target format post-render.
 pub async fn render_diagram(
     registry: &DiagramRegistry,
     request: RenderRequestDto,
 ) -> DiagramResult<RenderResponseDto> {
     let diagram_type = request.diagram_type.clone();
-    let request = request.into_diagram_request()?;
-    debug!(diagram_type = %diagram_type, "transport received render request");
+    let target_format = request.output_format.clone();
+    let mut core_request = request.into_diagram_request()?;
+
+    // Providers generate SVG; transport handles format conversion post-render.
+    core_request.output_format = OutputFormat::Svg;
+
+    debug!(
+        diagram_type = %diagram_type,
+        target_format = %target_format,
+        "transport received render request"
+    );
 
     let started = std::time::Instant::now();
-    let response = match render_with_registry(registry, &request).await {
+    let response = match render_with_registry(registry, &core_request).await {
         Ok(response) => response,
         Err(err) => {
             metrics::counter!(
@@ -122,6 +171,15 @@ pub async fn render_diagram(
         }
     };
 
+    // Post-process: convert SVG to the target format if needed.
+    let converted_data = conversion::convert_svg(&response.data, &target_format)?;
+
+    let dto = RenderResponseDto {
+        data: converted_data,
+        content_type: target_format.content_type().to_string(),
+        duration_ms: started.elapsed().as_millis() as u64,
+    };
+
     metrics::counter!(
         "kroki_transport_render_requests_total",
         "diagram_type" => diagram_type.clone(),
@@ -136,13 +194,15 @@ pub async fn render_diagram(
 
     info!(
         diagram_type = %diagram_type,
+        target_format = %target_format,
         duration_ms = started.elapsed().as_millis() as u64,
         "transport render flow completed"
     );
-    Ok(response.into())
+    Ok(dto)
 }
 
-fn decode_base64_source(encoded: &str) -> DiagramResult<String> {
+/// Decode a base64-encoded source string, trying standard, URL-safe, and URL-safe-no-pad variants.
+pub fn decode_base64_source(encoded: &str) -> DiagramResult<String> {
     use base64::Engine;
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(encoded)
@@ -153,7 +213,8 @@ fn decode_base64_source(encoded: &str) -> DiagramResult<String> {
         .map_err(|err| DiagramError::ValidationFailed(format!("invalid utf-8 payload: {err}")))
 }
 
-fn decode_base64_deflate_source(encoded: &str) -> DiagramResult<String> {
+/// Decode a base64+deflate (zlib) encoded source string.
+pub fn decode_base64_deflate_source(encoded: &str) -> DiagramResult<String> {
     use base64::Engine;
     let compressed = base64::engine::general_purpose::STANDARD
         .decode(encoded)
@@ -194,7 +255,7 @@ mod tests {
             .expect("render flow should succeed");
 
         assert_eq!(response.content_type, "image/svg+xml");
-        assert!(response.data.contains("bootstrap-echo:echo:A -> B"));
+        assert!(response.data_as_string().contains("bootstrap-echo:echo:A -> B"));
     }
 
     #[test]
@@ -221,7 +282,7 @@ mod tests {
         let response = render_diagram(&registry, request)
             .await
             .expect("render flow should succeed");
-        assert!(response.data.contains("bootstrap-echo:echo:A -> B"));
+        assert!(response.data_as_string().contains("bootstrap-echo:echo:A -> B"));
     }
 
     #[tokio::test]
@@ -249,6 +310,6 @@ mod tests {
         let response = render_diagram(&registry, request)
             .await
             .expect("render flow should succeed");
-        assert!(response.data.contains("bootstrap-echo:echo:A -> B"));
+        assert!(response.data_as_string().contains("bootstrap-echo:echo:A -> B"));
     }
 }

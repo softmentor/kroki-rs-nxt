@@ -3,18 +3,22 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::Html;
+use axum::body::Bytes;
+use axum::extract::{Path, State};
+use axum::http::{header, StatusCode};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router};
 use kroki_adapter_transport::middleware::auth::auth_middleware;
 use kroki_adapter_transport::middleware::circuit_breaker::CircuitBreakerManager;
 use kroki_adapter_transport::middleware::rate_limit::{rate_limit_middleware, RateLimiter};
-use kroki_adapter_transport::{render_diagram, RenderRequestDto, RenderResponseDto};
+use kroki_adapter_transport::{
+    decode_base64_deflate_source, render_diagram, KrokiJsonRequestDto, PayloadEncoding,
+    RenderRequestDto,
+};
 use kroki_core::config::Config;
 use kroki_core::{
-    BpmnProvider, D2Provider, DiagramError, DiagramRegistry, EchoProvider, GraphvizProvider,
-    MermaidProvider, ProviderCategory, ProviderMetadata, RuntimeDependency,
+    D2Provider, DiagramError, DiagramRegistry, EchoProvider, GraphvizProvider,
+    MermaidProvider, OutputFormat, ProviderCategory, ProviderMetadata, RuntimeDependency,
 };
 use metrics_exporter_prometheus::PrometheusHandle;
 use tracing::{debug, error, info, warn};
@@ -91,13 +95,52 @@ pub fn app_with_config(config: &Config) -> Router {
     );
     registry.register_with_metadata(
         "bpmn",
-        Arc::new(BpmnProvider::new()),
+        Arc::new(kroki_core::BpmnProvider::new()),
         ProviderMetadata {
             provider_id: "bpmn".to_string(),
             category: ProviderCategory::Browser,
             runtime: RuntimeDependency::BrowserEngine,
             supported_formats: vec![kroki_core::OutputFormat::Svg],
             description: "BPMN browser provider (native-browser runtime pending)".to_string(),
+        },
+    );
+    registry.register_with_metadata(
+        "ditaa",
+        Arc::new(kroki_core::DitaaProvider::new()),
+        ProviderMetadata {
+            provider_id: "ditaa".to_string(),
+            category: ProviderCategory::Command,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "ditaa".to_string(),
+            },
+            supported_formats: vec![kroki_core::OutputFormat::Png, kroki_core::OutputFormat::Svg],
+            description: "Ditaa command provider".to_string(),
+        },
+    );
+    registry.register_with_metadata(
+        "excalidraw",
+        Arc::new(kroki_core::ExcalidrawProvider::new()),
+        ProviderMetadata {
+            provider_id: "excalidraw".to_string(),
+            category: ProviderCategory::Command,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "excalidraw".to_string(),
+            },
+            supported_formats: vec![kroki_core::OutputFormat::Svg],
+            description: "Excalidraw command provider".to_string(),
+        },
+    );
+    registry.register_with_metadata(
+        "wavedrom",
+        Arc::new(kroki_core::WavedromProvider::new()),
+        ProviderMetadata {
+            provider_id: "wavedrom".to_string(),
+            category: ProviderCategory::Command,
+            runtime: RuntimeDependency::SystemTool {
+                binary: "wavedrom-cli".to_string(),
+            },
+            supported_formats: vec![kroki_core::OutputFormat::Svg],
+            description: "Wavedrom command provider".to_string(),
         },
     );
 
@@ -126,11 +169,20 @@ pub fn app_with_config(config: &Config) -> Router {
     Router::new()
         .route(
             "/",
-            axum::routing::get(|| async { "kroki-rs-nxt server - bootstrap baseline ready" }),
+            axum::routing::get(|| async { "kroki-rs-nxt server - bootstrap baseline ready" })
+                .post(kroki_json_handler),
         )
         .route("/playground", axum::routing::get(playground_handler))
         .route("/capabilities", axum::routing::get(capabilities_handler))
         .route("/render", axum::routing::post(render_handler))
+        .route(
+            "/{diagram_type}/{output_format}",
+            axum::routing::post(kroki_post_handler),
+        )
+        .route(
+            "/{diagram_type}/{output_format}/{encoded_source}",
+            axum::routing::get(kroki_get_handler),
+        )
         .layer(axum::middleware::from_fn_with_state(
             rate_limiter,
             rate_limit_middleware,
@@ -157,7 +209,7 @@ async fn playground_handler() -> Html<String> {
 async fn render_handler(
     State(state): State<AppState>,
     Json(request): Json<RenderRequestDto>,
-) -> Result<Json<RenderResponseDto>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if request.source.len() > state.policies.max_input_size {
         return Err((
             StatusCode::PAYLOAD_TOO_LARGE,
@@ -229,7 +281,210 @@ async fn render_handler(
     }
 
     info!(content_type = %response.content_type, "render request completed");
-    Ok(Json(response))
+    Ok(Json(serde_json::json!({
+        "data": response.data_as_string(),
+        "content_type": response.content_type,
+        "duration_ms": response.duration_ms,
+    })))
+}
+
+/// Execute render and return raw content with correct Content-Type header.
+///
+/// This is the common function used by all standard kroki endpoints to return
+/// raw diagram output (SVG text, PNG bytes, etc.) instead of JSON-wrapped responses.
+async fn execute_and_respond_raw(
+    state: &AppState,
+    request: RenderRequestDto,
+) -> Result<Response, (StatusCode, String)> {
+    // Validate input size
+    if request.source.len() > state.policies.max_input_size {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            serde_json::json!({
+                "code": "payload_too_large",
+                "message": format!(
+                    "input exceeds max_input_size ({} bytes)",
+                    state.policies.max_input_size
+                )
+            })
+            .to_string(),
+        ));
+    }
+
+    // Check circuit breaker
+    if let Some(cb) = state.policies.circuit_breaker.as_ref() {
+        if !cb.should_allow(&request.diagram_type) {
+            return Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                serde_json::json!({
+                    "code": "circuit_breaker_open",
+                    "message": format!(
+                        "provider '{}' is temporarily unavailable due to repeated failures",
+                        request.diagram_type
+                    )
+                })
+                .to_string(),
+            ));
+        }
+    }
+
+    debug!(diagram_type = %request.diagram_type, "kroki endpoint received render request");
+    let diagram_type = request.diagram_type.clone();
+    let response = render_diagram(state.registry.as_ref(), request)
+        .await
+        .map_err(|err| {
+            if let Some(cb) = state.policies.circuit_breaker.as_ref() {
+                if should_record_provider_failure(&err) {
+                    cb.record_failure(&diagram_type);
+                }
+            }
+            warn!(error = %err, "render request rejected");
+            let (status, code) = map_error_status(&err);
+            (
+                status,
+                serde_json::json!({
+                    "code": code,
+                    "message": err.to_string()
+                })
+                .to_string(),
+            )
+        })?;
+
+    // Validate output size
+    if response.data.len() > state.policies.max_output_size {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({
+                "code": "output_too_large",
+                "message": format!(
+                    "generated output exceeds max_output_size ({} bytes)",
+                    state.policies.max_output_size
+                )
+            })
+            .to_string(),
+        ));
+    }
+
+    if let Some(cb) = state.policies.circuit_breaker.as_ref() {
+        cb.record_success(&diagram_type);
+    }
+
+    info!(content_type = %response.content_type, "render request completed");
+
+    // Return raw content with correct Content-Type
+    Ok((
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, response.content_type.as_str())],
+        response.data,
+    )
+        .into_response())
+}
+
+/// Standard Kroki POST endpoint: `POST /{type}/{format}` with raw text body.
+///
+/// Compatible with original Kroki API.
+/// Reference: <https://docs.kroki.io/kroki/setup/http-clients/>
+async fn kroki_post_handler(
+    State(state): State<AppState>,
+    Path((diagram_type, output_format)): Path<(String, String)>,
+    body: Bytes,
+) -> Result<Response, (StatusCode, String)> {
+    let format: OutputFormat = output_format.parse().map_err(|e: String| {
+        (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "code": "invalid_format",
+                "message": e
+            })
+            .to_string(),
+        )
+    })?;
+
+    let source = String::from_utf8(body.to_vec()).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "code": "invalid_body",
+                "message": "request body must be valid UTF-8"
+            })
+            .to_string(),
+        )
+    })?;
+
+    let request = RenderRequestDto {
+        source,
+        source_encoded: None,
+        source_encoding: PayloadEncoding::Plain,
+        diagram_type,
+        output_format: format,
+    };
+
+    execute_and_respond_raw(&state, request).await
+}
+
+/// Standard Kroki GET endpoint: `GET /{type}/{format}/{encoded}` with Base64+Deflate source.
+///
+/// Compatible with original Kroki API.
+/// Reference: <https://docs.kroki.io/kroki/setup/http-clients/>
+async fn kroki_get_handler(
+    State(state): State<AppState>,
+    Path((diagram_type, output_format, encoded_source)): Path<(String, String, String)>,
+) -> Result<Response, (StatusCode, String)> {
+    let format: OutputFormat = output_format.parse().map_err(|e: String| {
+        (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "code": "invalid_format",
+                "message": e
+            })
+            .to_string(),
+        )
+    })?;
+
+    let source = decode_base64_deflate_source(&encoded_source).map_err(|err| {
+        (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "code": "invalid_encoding",
+                "message": err.to_string()
+            })
+            .to_string(),
+        )
+    })?;
+
+    let request = RenderRequestDto {
+        source,
+        source_encoded: None,
+        source_encoding: PayloadEncoding::Plain,
+        diagram_type,
+        output_format: format,
+    };
+
+    execute_and_respond_raw(&state, request).await
+}
+
+/// Standard Kroki JSON POST endpoint: `POST /` with JSON body.
+///
+/// Accepts: `{"diagram_type": "...", "output_format": "...", "diagram_source": "..."}`
+///
+/// Compatible with original Kroki API.
+/// Reference: <https://docs.kroki.io/kroki/setup/http-clients/>
+async fn kroki_json_handler(
+    State(state): State<AppState>,
+    Json(body): Json<KrokiJsonRequestDto>,
+) -> Result<Response, (StatusCode, String)> {
+    let request = body.into_render_request().map_err(|err| {
+        (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "code": "invalid_request",
+                "message": err.to_string()
+            })
+            .to_string(),
+        )
+    })?;
+
+    execute_and_respond_raw(&state, request).await
 }
 
 fn should_record_provider_failure(err: &DiagramError) -> bool {
@@ -936,6 +1191,188 @@ mod tests {
             .expect("app should handle request");
         assert_eq!(response.status(), StatusCode::OK);
     }
+
+    // ---- Standard Kroki API endpoint tests ----
+
+    #[tokio::test]
+    async fn integration_kroki_post_endpoint_renders_diagram() {
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/echo/svg")
+            .header("content-type", "text/plain")
+            .body(Body::from("A -> B"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/svg+xml");
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(body.contains("<svg"), "response should contain raw SVG");
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_post_endpoint_graphviz_when_available() {
+        if which::which("dot").is_err() {
+            return;
+        }
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/graphviz/svg")
+            .header("content-type", "text/plain")
+            .body(Body::from("digraph G { A -> B; }"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/svg+xml");
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_get_endpoint_renders_diagram() {
+        use base64::Engine;
+        use std::io::Write;
+
+        let app = super::app();
+
+        // Encode "A -> B" as deflate + base64 (URL-safe)
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(b"A -> B").expect("zlib write");
+        let compressed = encoder.finish().expect("zlib finish");
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&compressed);
+
+        let uri = format!("/echo/svg/{encoded}");
+        let request = Request::builder()
+            .method("GET")
+            .uri(&uri)
+            .body(Body::empty())
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/svg+xml");
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(
+            body.contains("bootstrap-echo:echo:A -> B"),
+            "response should contain decoded source"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_json_post_endpoint_renders_diagram() {
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"diagram_type":"echo","output_format":"svg","diagram_source":"A -> B"}"#,
+            ))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/svg+xml");
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(body.contains("<svg"), "response should contain raw SVG");
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_post_endpoint_png_format_conversion() {
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/echo/png")
+            .header("content-type", "text/plain")
+            .body(Body::from("A -> B"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/png");
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        // Verify PNG magic bytes
+        assert!(bytes.len() > 8, "PNG output should be non-trivial");
+        assert_eq!(&bytes[0..4], &[0x89, b'P', b'N', b'G']);
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_post_endpoint_webp_format_conversion() {
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/echo/webp")
+            .header("content-type", "text/plain")
+            .body(Body::from("A -> B"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response.headers().get("content-type").unwrap();
+        assert_eq!(ct, "image/webp");
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("body should be readable");
+        // Verify WebP magic bytes
+        assert!(bytes.len() > 12, "WebP output should be non-trivial");
+        assert_eq!(&bytes[0..4], b"RIFF");
+        assert_eq!(&bytes[8..12], b"WEBP");
+    }
+
+    #[tokio::test]
+    async fn integration_kroki_post_endpoint_returns_400_for_invalid_format() {
+        let app = super::app();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/echo/bmp")
+            .header("content-type", "text/plain")
+            .body(Body::from("A -> B"))
+            .expect("request should be valid");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("app should handle request");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    // ---- Legacy /render endpoint tests ----
 
     #[tokio::test]
     async fn integration_render_route_accepts_base64_payload() {
