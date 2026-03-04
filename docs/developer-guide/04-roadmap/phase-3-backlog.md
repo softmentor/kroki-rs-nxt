@@ -9,123 +9,109 @@ label: kroki-rs-nxt.developer-guide.phase3-backlog
 
 Define concrete Phase 3 migration batches, dependency ordering, and risk notes after Phase 2 bootstrap closure.
 
-Date baseline: **2026-03-03**
+Date baseline: **2026-03-03** | Last updated: **2026-03-04**
 
 ## Batch Breakdown
 
 ### Batch 3.1: Command Providers Foundation
 
+Status: **Complete**
+
 Scope:
 
 - Graphviz (`dot`)
 - D2
+- Ditaa
+- Excalidraw
+- Wavedrom
 - Shared command execution wrapper and timeout handling
 
-Progress update (2026-03-03):
+Completion (2026-03-04):
 
-- Graphviz provider landed.
-- D2 provider landed.
-- Shared command execution abstraction is still pending; providers currently use per-provider command paths with common timeout/error conventions.
-
-Deliverables:
-
-- Command provider base implementation in `kroki-core`
-- Registry wiring and capability metadata for command providers
-- Conformance tests for deterministic SVG output contracts
-
-Key dependencies:
-
-- Frozen request/response/error contracts (`core-contracts.md`)
-- Process timeout and error mapping policy in adapters
-
-Risk notes:
-
-- Host tool availability drift across CI/local environments
-- Output non-determinism due to tool versions
+- Graphviz, D2, Ditaa, Excalidraw, and Wavedrom providers implemented with timeout/error handling.
+- All command providers registered with capability metadata in CLI and server registries.
+- Providers use per-provider command paths with common timeout/error conventions via `tokio::process::Command`.
+- SVG-to-PNG/WebP format conversion wired via `resvg` in transport layer.
+- Integration and conformance tests in place.
 
 ### Batch 3.2: Browser Providers Foundation
 
+Status: **Complete**
+
 Scope:
 
-- Mermaid
-- BPMN
-- Browser execution bootstrap using `native-browser` feature
+- Mermaid (CDP primary + `mmdc` CLI fallback)
+- BPMN (CDP)
+- Browser execution using `native-browser` feature
 
-Progress update (2026-03-03):
+Completion (2026-03-04):
 
-- Mermaid provider runtime path is wired through `mmdc` in `native-browser` builds.
-- Explicit error/status mapping is now applied at server render boundary.
-- BPMN provider baseline is registered with status-mapped pending runtime implementation.
-- Browser pooling/runtime hardening remains pending for next increments.
-
-Deliverables:
-
-- Browser provider interface and lifecycle hooks
-- Minimal browser session/pool management baseline
-- Contract tests with fixture-driven input/output checks
-
-Key dependencies:
-
-- Batch 3.1 error mapping and timeout handling
-- Feature-gated runtime path for environments without browser support
-
-Risk notes:
-
-- Headless browser lifecycle flakiness
-- Increased CI runtime cost and caching complexity
+- Mermaid provider wired with dual-path: CDP primary via `BrowserManager`, `mmdc` CLI fallback.
+- BPMN provider fully implemented with CDP-based rendering.
+- Browser pool management with configurable pool size, context TTL recycle, and adaptive failure recycle.
+- Browser engine URL configuration threaded through `Config` → `BrowserManager` → providers.
+- Font injection via cache-backed `@font-face` harness.
+- Feature-gated `native-browser` path with graceful fallback for environments without browser support.
 
 ### Batch 3.3: Pipeline and Plugin Providers
+
+Status: **Pipeline Complete / Plugin Planned**
 
 Scope:
 
 - Vega / VegaLite multi-step pipeline
 - Plugin provider handshake through `kroki-plugins`
 
-Deliverables:
+Completion (2026-03-04 — Pipeline):
 
-- Pipeline execution chain contract and validation
-- Plugin subprocess protocol baseline and error semantics
-- Integration tests for pipeline edge cases and plugin failures
+- Vega provider implemented (`vg2svg` subprocess).
+- Vega-Lite provider implemented (`vl2vg` → `vg2svg` two-stage pipeline).
+- Both providers registered with capability metadata and integration tests.
+- Pipeline error attribution handled via per-stage error messages.
 
-Key dependencies:
+Remaining (Plugin):
 
-- Batch 3.1 execution and error infrastructure
-- Plugin lifecycle ownership model from core/plugins
-
-Risk notes:
-
-- Multi-step error attribution ambiguity
-- Plugin protocol versioning drift
+- Plugin subprocess protocol baseline and error semantics — deferred to later Phase 3 increment.
+- `core/plugins` crate scaffolded but not yet wired.
 
 ### Batch 3.4: Transport and Middleware Hardening
 
+Status: **Substantially Complete**
+
 Scope:
 
-- Server route expansion (`/render`, `/render/batch`, health endpoints)
-- Auth, rate limiting, and metrics baseline middleware
+- Standard Kroki API endpoints (wire-compatible with original Kroki)
+- RFC 7807 Problem Details error responses
+- Auth, rate limiting, circuit breaker middleware
+- SVG-to-raster format conversion pipeline
 
-Deliverables:
+Completion (2026-03-04):
 
-- Adapter-level DTO and error response conventions
-- Middleware policy wiring with tests
-- Smoke checks for critical server paths
+- Standard endpoints: `POST /{type}/{format}`, `POST /` (JSON), `GET /{type}/{format}/{encoded}`.
+- RFC 7807 `application/problem+json` error responses on all error paths.
+- Auth, rate limiting, and circuit breaker middleware fully wired.
+- SVG-to-PNG and SVG-to-WebP conversion via `resvg` + `image` in `adapters/transport/src/conversion.rs`.
+- Input/output size guardrails enforced.
 
-Key dependencies:
+Remaining:
 
-- Batches 3.1-3.3 provider semantics and errors
-- Observability baseline conventions
-
-Risk notes:
-
-- Middleware ordering regressions
-- Inconsistent status code mapping from domain errors
+- Admin dashboard (HTML UI) — gap
+- Richer Prometheus metrics (beyond request count and duration) — partial
 
 ## Dependency Ordering
 
-1. Batch 3.1 (Command) must land first.
-2. Batch 3.2 (Browser) depends on 3.1 error and timeout conventions.
-3. Batch 3.3 (Pipeline/Plugin) depends on 3.1 execution baseline and 3.2 optional browser interop.
-4. Batch 3.4 (Transport hardening) consolidates provider semantics from earlier batches.
+1. ~~Batch 3.1 (Command) must land first.~~ **Done.**
+2. ~~Batch 3.2 (Browser) depends on 3.1 error and timeout conventions.~~ **Done.**
+3. ~~Batch 3.3 (Pipeline) depends on 3.1 execution baseline.~~ **Done (pipeline). Plugin deferred.**
+4. ~~Batch 3.4 (Transport hardening) consolidates provider semantics from earlier batches.~~ **Substantially done.**
+
+## Remaining Phase 3 Work
+
+- Plugin system (`core/plugins`) — L effort
+- Per-tool config (bin_path, timeout, config overrides) — M effort
+- Filesystem cache (`adapters/storage`) — M effort
+- Admin dashboard — M effort
+- PDF output format — S effort
 
 ## Readiness Gates per Batch
 

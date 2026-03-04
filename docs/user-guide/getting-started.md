@@ -11,9 +11,15 @@ Get up and running with kroki-rs-nxt in minutes.
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Graphviz (`dot`) | latest | Graphviz provider execution for CLI/server render |
-| D2 (`d2`) | latest | D2 provider execution for CLI/server render |
-| Mermaid CLI (`mmdc`) | latest | Mermaid browser-runtime rendering in CLI/server |
+| Graphviz (`dot`) | latest | Graphviz provider |
+| D2 (`d2`) | latest | D2 provider |
+| Mermaid CLI (`mmdc`) | latest | Mermaid provider (CLI fallback path) |
+| Ditaa (`ditaa`) | latest | Ditaa provider |
+| Excalidraw (`excalidraw`) | latest | Excalidraw provider |
+| Wavedrom CLI (`wavedrom-cli`) | latest | Wavedrom provider |
+| Vega CLI (`vg2svg`) | latest | Vega provider |
+| Vega-Lite CLI (`vl2vg`) | latest | Vega-Lite provider (also requires `vg2svg`) |
+| Chromium / Chrome | latest | Browser providers (Mermaid CDP, BPMN) |
 
 References:
 - [Graphviz](https://graphviz.org/)
@@ -68,25 +74,67 @@ kroki --help
 kroki convert --help
 ```
 
+### Convert
+
 Run a conversion:
 
 ```bash
 kroki convert --diagram-type graphviz --source 'digraph G { A -> B; }'
 kroki convert --diagram-type d2 --source 'a -> b'
 kroki convert --diagram-type mermaid --source 'graph TD; A-->B;'
+kroki convert --diagram-type vegalite --input chart.vl.json
 ```
 
-Input file mode (works for all supported diagrams):
+Input file mode with auto-detection (works for all supported diagrams):
 
 ```bash
-kroki convert --diagram-type graphviz --input ./sample.dot
+kroki convert --input ./sample.dot          # auto-detects graphviz from .dot
+kroki convert --input ./diagram.mmd         # auto-detects mermaid from .mmd
+kroki convert --input ./process.bpmn        # auto-detects bpmn from .bpmn
+```
+
+Output format selection:
+
+```bash
+kroki convert -t graphviz -s 'digraph G { A -> B; }' -f png -o graph.png
+kroki convert -t d2 -s 'a -> b' -f webp -o diagram.webp
+```
+
+Stdin/stdout piping:
+
+```bash
+echo 'digraph G { A -> B; }' | kroki convert -t graphviz -o -
+cat diagram.dot | kroki convert -t graphviz -f png > output.png
 ```
 
 Output behavior:
-- If `--output` is provided, output is written there.
+- If `--output` is provided, output is written there. Use `-` for stdout.
 - If `--output` is omitted, CLI auto-writes to `./kroki-<diagram_type>-<timestamp>.<ext>` and logs the file path.
 
+Supported file extensions for auto-detection: `.dot`, `.gv` (graphviz), `.mmd`, `.mermaid` (mermaid), `.d2`, `.puml`, `.plantuml`, `.excalidraw`, `.bpmn`, `.vega`, `.vl` (vegalite), `.ditaa`, `.wavedrom`.
+
 If Graphviz (`dot`) is unavailable, CLI falls back to bootstrap `echo` provider.
+
+### Encode and Decode
+
+Encode text to deflate + base64 for use in GET URLs:
+
+```bash
+kroki encode 'digraph G { A -> B; }'
+echo 'digraph G { A -> B; }' | kroki encode
+```
+
+Decode back to plain text:
+
+```bash
+kroki decode eNpLyUwvSizIUHBXKM8vyklRBABQ_gVo
+```
+
+### Version
+
+```bash
+kroki version
+```
 
 ## Start Server
 
@@ -193,8 +241,8 @@ Start server, then open:
 
 Playground supports:
 - three-pane editor layout (examples sidebar, source editor, preview pane)
-- provider selection (`graphviz`, `d2`, `mermaid`, `bpmn`, `echo`)
-- output format and payload mode controls
+- provider selection (`graphviz`, `d2`, `mermaid`, `bpmn`, `ditaa`, `excalidraw`, `wavedrom`, `vega`, `vegalite`, `echo`)
+- output format selection (SVG, PNG, WebP) and payload mode controls
 - prefilled examples with one-click reset
 - optional auto-render while editing
 - dark/light theme switch
@@ -223,7 +271,48 @@ In another terminal while server is running:
 curl -sS http://127.0.0.1:8000/capabilities | jq
 ```
 
-Render with plain payload:
+### Standard Kroki Endpoints (Wire-Compatible)
+
+These endpoints match the original [Kroki API](https://docs.kroki.io/kroki/setup/http-clients/):
+
+**POST raw text** (`/{type}/{format}`):
+
+```bash
+curl -sS \
+  -H "content-type: text/plain" \
+  -d 'digraph G { A -> B; }' \
+  http://127.0.0.1:8000/graphviz/svg
+```
+
+**POST JSON** (`/`):
+
+```bash
+curl -sS \
+  -H "content-type: application/json" \
+  -d '{"diagram_type":"graphviz","output_format":"svg","diagram_source":"digraph G { A -> B; }"}' \
+  http://127.0.0.1:8000/
+```
+
+**GET with encoded source** (`/{type}/{format}/{encoded}`):
+
+```bash
+# Encode source first: kroki encode < file.dot
+ENCODED=$(printf 'digraph G { A -> B; }' | kroki encode)
+curl -sS "http://127.0.0.1:8000/graphviz/svg/${ENCODED}"
+```
+
+**PNG output** (any endpoint):
+
+```bash
+curl -sS \
+  -H "content-type: text/plain" \
+  -d 'digraph G { A -> B; }' \
+  http://127.0.0.1:8000/graphviz/png -o graph.png
+```
+
+### Legacy Render Endpoint
+
+The `/render` endpoint uses a different JSON shape and is retained for backward compatibility:
 
 ```bash
 curl -sS \
@@ -232,58 +321,62 @@ curl -sS \
   http://127.0.0.1:8000/render | jq
 ```
 
-Render with base64 payload (debug path):
+### Provider Examples
+
+D2:
 
 ```bash
-PAYLOAD=$(printf 'digraph G { A -> B; }' | base64)
-curl -sS \
-  -H "content-type: application/json" \
-  -d "{\"source\":\"\",\"source_encoded\":\"$PAYLOAD\",\"source_encoding\":\"base64\",\"diagram_type\":\"graphviz\",\"output_format\":\"Svg\"}" \
-  http://127.0.0.1:8000/render | jq
+curl -sS -H "content-type: text/plain" -d 'a -> b' http://127.0.0.1:8000/d2/svg
 ```
 
-Render with D2:
+Mermaid:
 
 ```bash
-curl -sS \
-  -H "content-type: application/json" \
-  -d '{"source":"a -> b","diagram_type":"d2","output_format":"Svg","source_encoding":"plain"}' \
-  http://127.0.0.1:8000/render | jq
+curl -sS -H "content-type: text/plain" \
+  -d 'graph TD; A-->B;' http://127.0.0.1:8000/mermaid/svg
 ```
 
-Mermaid (feature-gated browser path):
+BPMN:
 
 ```bash
-curl -sS \
-  -H "content-type: application/json" \
-  -d '{"source":"graph TD; A-->B;","diagram_type":"mermaid","output_format":"Svg","source_encoding":"plain"}' \
-  http://127.0.0.1:8000/render | jq
+curl -sS -H "content-type: text/plain" \
+  -d @process.bpmn http://127.0.0.1:8000/bpmn/svg
 ```
 
-Note:
-- Mermaid rendering requires `mmdc` on `PATH`.
-- If `mmdc` is missing, server returns `503` with error code `tool_unavailable`.
-
-BPMN baseline:
-- `bpmn` provider is registered and status/error mapped.
-- Runtime rendering path is pending; current server response is `500` with `internal_error`.
-
-If Graphviz is not installed, use `echo` provider:
+Vega-Lite:
 
 ```bash
-curl -sS \
-  -H "content-type: application/json" \
-  -d '{"source":"A -> B","diagram_type":"echo","output_format":"Svg","source_encoding":"plain"}' \
-  http://127.0.0.1:8000/render | jq
+curl -sS -H "content-type: text/plain" \
+  -d @chart.vl.json http://127.0.0.1:8000/vegalite/svg
 ```
 
-Render error/status mapping (server `/render`):
-- `400` validation errors
-- `415` unsupported output format
-- `503` required tool/runtime unavailable
-- `504` execution timeout
-- `422` tool process failed
-- `500` internal/runtime not yet implemented
+If a provider's tool is not installed, use `echo` provider for testing:
+
+```bash
+curl -sS -H "content-type: text/plain" -d 'A -> B' http://127.0.0.1:8000/echo/svg
+```
+
+### Error Responses (RFC 7807)
+
+All error responses use RFC 7807 Problem Details format (`application/problem+json`):
+
+```json
+{
+  "type": "https://kroki.io/errors/validation_failed",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Validation failed: source must not be empty"
+}
+```
+
+Error/status mapping:
+- `400` — validation errors (`validation_failed`)
+- `413` — input exceeds `max_input_size` (`payload_too_large`)
+- `415` — unsupported output format (`unsupported_format`)
+- `422` — tool process failed (`process_failed`)
+- `500` — internal error (`internal_error`)
+- `503` — required tool/runtime unavailable (`tool_not_found`), or circuit breaker open (`circuit_open`)
+- `504` — execution timeout (`execution_timeout`)
 
 ## What's Next?
 

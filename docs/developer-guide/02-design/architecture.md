@@ -53,18 +53,22 @@ Core MUST NEVER depend on an App or Adapter. Adapters MUST NEVER depend on an Ap
 
 ## Architecture State (Current vs Target)
 
-### Current Repository State (Phase 2 Bootstrap)
+### Current Repository State (Phase 3 — v0.1.0-alpha.1)
 
-- `core/sdk-rust` is scaffolded with base modules (`ports`, `providers`, `services`, `config`, `error`, `utils`).
-- `adapters/storage` and `adapters/transport` are scaffolded as bootstrap baseline crates.
-- `apps/cli` and `apps/server` compile with placeholder runtime entry points.
-- `apps/desktop`, `apps/web-app`, and `apps/vscode-ext` have bootstrap baseline packages and are ready for active feature implementation.
+- `core/sdk-rust` has all 9 production providers implemented (Graphviz, D2, Ditaa, Excalidraw, Wavedrom, Mermaid, BPMN, Vega, Vega-Lite) plus Echo bootstrap stub.
+- `core/sdk-rust` includes browser subsystem (`browser/manager.rs`, `browser/native.rs`, `browser/backend.rs`) and font management.
+- `adapters/transport` provides HTTP DTO mapping, format conversion (SVG to PNG/WebP via `resvg`), and middleware (auth, rate limiting, circuit breaker).
+- `adapters/storage` is scaffolded (cache adapter not yet implemented).
+- `apps/cli` is feature-complete for Phase 3: `convert`, `encode`, `decode`, `completions`, `version`, file auto-detection, stdin/stdout piping.
+- `apps/server` implements standard Kroki API endpoints, RFC 7807 error responses, and all middleware.
+- `apps/desktop`, `apps/web-app`, and `apps/vscode-ext` have bootstrap baseline packages ready for Phase 4.
 
-### Target State (Phases 3-5)
+### Target State (Phases 4-5)
 
-- Provider implementations are migrated in capability slices (Command, Browser, Pipeline, Plugin).
-- Adapters become production-ready with HTTP handlers, middleware, caching integration, and observability.
-- Additional surfaces (Desktop, Web, VS Code) are activated and consume shared core logic through `core/sdk-ts`.
+- Plugin system implementation (`core/plugins`).
+- Filesystem caching via `adapters/storage`.
+- Per-tool configuration (bin_path, timeout, config overrides).
+- Additional surfaces (Desktop, Web, VS Code) activated and consuming shared core logic through `core/sdk-ts`.
 
 ---
 
@@ -104,7 +108,7 @@ Entry points that compose Core and Adapters into runnable applications.
 | App | Stack | Description |
 |-----|-------|-------------|
 | `apps/cli` (`kroki-cli`) | Rust (Ratatui TUI) | Interactive terminal UI for diagram conversion |
-| `apps/server` (`kroki-server`) | Rust (Axum + Lit playground route) | Public API (`/render`, `/capabilities`, `/playground`) + admin API (`/health`, `/metrics`) with dev/prod runtime modes |
+| `apps/server` (`kroki-server`) | Rust (Axum + Lit playground route) | Standard Kroki API (`/{type}/{format}`, `/`, `/{type}/{format}/{encoded}`), legacy `/render`, `/capabilities`, `/playground` + admin API (`/health`, `/metrics`) with dev/prod runtime modes and RFC 7807 error responses |
 | `apps/desktop` | Tauri (Rust + Lit/TS) | Native desktop app with embedded web UI (planned) |
 | `apps/vscode-ext` | TypeScript | VS Code extension for in-editor diagram preview (planned) |
 | `apps/web-app` | Lit + TypeScript | Standalone web dashboard (planned) |
@@ -126,24 +130,34 @@ flowchart LR
     CLI["kroki-cli"]
     SERVER["kroki-server"]
     TRANSPORT["kroki-adapter-transport"]
+    CONV["Format Conversion<br/>(resvg + image)"]
     STORAGE["kroki-adapter-storage"]
     REGISTRY["DiagramRegistry"]
     PROVIDER["DiagramProvider"]
-    ECHO["EchoProvider (Phase 2 stub)"]
+    CMD["CommandProviders<br/>(Graphviz, D2, Ditaa,<br/>Excalidraw, Wavedrom)"]
+    BROWSER["BrowserProviders<br/>(Mermaid, BPMN)"]
+    PIPELINE["PipelineProviders<br/>(Vega, Vega-Lite)"]
 
     CLI -->|"RenderRequestDto"| TRANSPORT
     SERVER -->|"RenderRequestDto"| TRANSPORT
-    TRANSPORT -->|"DiagramRequest"| REGISTRY
+    TRANSPORT -->|"DiagramRequest<br/>(always SVG)"| REGISTRY
     REGISTRY -->|"resolve by diagram_type"| PROVIDER
-    ECHO -.implements.-> PROVIDER
-    TRANSPORT -->|"DiagramResponse -> RenderResponseDto"| CLI
-    SERVER -->|"HTTP JSON response"| SERVER
+    CMD -.implements.-> PROVIDER
+    BROWSER -.implements.-> PROVIDER
+    PIPELINE -.implements.-> PROVIDER
+    REGISTRY -->|"DiagramResponse<br/>(SVG bytes)"| TRANSPORT
+    TRANSPORT -->|"SVG → PNG/WebP"| CONV
+    CONV -->|"RenderResponseDto<br/>(target format)"| TRANSPORT
+    TRANSPORT --> CLI
+    TRANSPORT --> SERVER
     STORAGE -.planned cache boundary.-> REGISTRY
 ```
 
 Transport request contract supports two source paths:
 - plain source via `source`
 - encoded source via `source_encoded` + `source_encoding` (`plain`, `base64`, `base64_deflate`)
+
+Format conversion pipeline: providers always generate SVG. The transport layer converts to the requested target format (PNG/WebP) post-render using `resvg` for rasterisation and the `image` crate for encoding. This is implemented in `adapters/transport/src/conversion.rs`.
 
 ---
 
@@ -309,7 +323,7 @@ This ensures business logic is written once in Rust and shared across surfaces.
 
 ## Runtime Flow Diagrams
 
-### CLI Convert Flow (Phase 2 Vertical Slice)
+### CLI Convert Flow
 
 ```mermaid
 sequenceDiagram
@@ -317,10 +331,12 @@ sequenceDiagram
     participant C as "apps/cli"
     participant T as "adapters/transport"
     participant R as "DiagramRegistry"
-    participant P as "EchoProvider"
+    participant P as "Provider (e.g. GraphvizProvider)"
+    participant Conv as "Format Conversion (resvg)"
 
-    U->>C: Run `kroki convert`
+    U->>C: Run `kroki convert -t graphviz -f png`
     C->>T: Build `RenderRequestDto` and call `render_diagram`
+    T->>T: Override output_format to SVG
     T->>R: Convert to `DiagramRequest` and call `render_with_registry`
     R->>R: Resolve provider by `diagram_type`
     R->>P: `validate(source)`
@@ -328,29 +344,37 @@ sequenceDiagram
     R->>P: `generate(request)`
     P-->>R: `DiagramResponse` (SVG payload)
     R-->>T: `DiagramResponse`
-    T-->>C: `RenderResponseDto`
-    C-->>U: Log/emit render result metadata
+    T->>Conv: `convert_svg(svg_data, PNG)`
+    Conv-->>T: PNG bytes
+    T-->>C: `RenderResponseDto` (PNG)
+    C-->>U: Write output file
 ```
 
-### Server Render Flow (`POST /render`)
+### Server Render Flow (`POST /{type}/{format}`)
 
 ```mermaid
 sequenceDiagram
     participant Client as "HTTP Client"
-    participant S as "apps/server (/render)"
+    participant S as "apps/server"
     participant T as "adapters/transport"
     participant R as "DiagramRegistry"
-    participant P as "EchoProvider"
+    participant P as "Provider"
+    participant Conv as "Format Conversion"
 
-    Client->>S: POST /render (JSON)
+    Client->>S: POST /graphviz/svg (text/plain body)
     S->>T: `render_diagram(registry, RenderRequestDto)`
+    T->>T: Override format to SVG for provider
     T->>R: `render_with_registry(DiagramRequest)`
     R->>P: validate + generate
-    P-->>R: `DiagramResponse`
+    P-->>R: `DiagramResponse` (SVG)
     R-->>T: `DiagramResponse`
+    T->>Conv: `convert_svg()` if target != SVG
+    Conv-->>T: Converted bytes
     T-->>S: `RenderResponseDto`
-    S-->>Client: 200 + JSON payload
+    S-->>Client: 200 + binary response (image/svg+xml or image/png)
 ```
+
+Error responses use RFC 7807 Problem Details (`application/problem+json`).
 
 ---
 

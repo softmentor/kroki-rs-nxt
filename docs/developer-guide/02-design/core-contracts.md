@@ -133,11 +133,19 @@ Phase 2 closes with a minimal vertical slice implemented and tested:
 - `source_encoded: Option<String>` (optional encoded payload path)
 - `source_encoding: PayloadEncoding` (`plain`, `base64`, `base64_deflate`)
 
+`RenderResponseDto` uses binary data:
+
+- `data: Vec<u8>` (raw bytes — UTF-8 text for SVG, binary for PNG/WebP)
+- `content_type: String`
+- `duration_ms: u64`
+- Helper: `data_as_string()` returns `String` via `from_utf8_lossy` for text-format responses.
+
 Behavior:
 
 - If `source` is non-empty, it is used directly.
 - If `source` is empty, adapter decodes `source_encoded` using `source_encoding`.
 - If neither path provides content, adapter returns `ValidationFailed`.
+- Transport layer overrides `output_format` to SVG before calling providers, then converts to target format (PNG/WebP) post-render via `adapters/transport/src/conversion.rs`.
 
 ### Contract Flow Sequence
 

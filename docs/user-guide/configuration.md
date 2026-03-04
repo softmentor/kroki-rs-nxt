@@ -14,29 +14,39 @@ kroki-rs-nxt uses two configuration files with distinct purposes:
 
 ---
 
-## Runtime Status (March 3, 2026)
+## Runtime Status (March 4, 2026)
 
 The `kroki.toml` model below is the **target configuration shape** for migration parity.
-Current bootstrap runtime support in `kroki-server` is limited.
+Most core runtime features are now implemented.
 
-Implemented now:
+Implemented:
 - runtime config loading from `kroki.toml` (plus `KROKI_CONFIG` override)
 - server bind and mode flags/env (`--mode`, `--host`, `--port`, `--bind`, admin bind variants)
 - debug logging mode (`--debug`)
+- standard Kroki API endpoints (`POST /{type}/{format}`, `POST /` JSON, `GET /{type}/{format}/{encoded}`)
+- legacy `/render` endpoint (retained for backward compatibility)
+- RFC 7807 Problem Details error responses (`application/problem+json`)
 - admin endpoints (`/health`, `/metrics`)
 - API key auth middleware (`server.auth`)
 - token-bucket rate limiting middleware (`server.rate_limit`)
 - provider-scoped circuit breaker manager (`server.circuit_breaker`)
 - input/output size guardrails (`max_input_size`, `max_output_size`)
-- provider tool discovery via PATH (`dot`, `d2`, `mmdc`)
-- native browser backend using `headless_chrome` (CDP) for Mermaid in `native-browser` builds
+- all 9 production providers active: Graphviz, D2, Ditaa, Excalidraw, Wavedrom, Mermaid, BPMN, Vega, Vega-Lite
+- provider tool discovery via PATH (`dot`, `d2`, `mmdc`, `ditaa`, `excalidraw`, `wavedrom-cli`, `vg2svg`, `vl2vg`)
+- SVG-to-PNG and SVG-to-WebP format conversion via `resvg` + `image` crates
+- native browser backend using `headless_chrome` (CDP) for Mermaid and BPMN in `native-browser` builds
 - browser manager with pool-based concurrency, context TTL recycle, and adaptive failure recycle
+- browser engine URL configuration threading through config
 - font URL handling for browser renderers with cache-backed `@font-face` harness injection
+- CLI commands: `convert`, `encode`, `decode`, `completions`, `version`
+- file extension auto-detection for 10 diagram types
 
 Planned (not fully wired yet in runtime middleware/config loader):
 - per-key specific rate limits (currently global limiter)
-- BPMN browser runtime implementation (provider currently returns explicit pending-runtime error)
+- per-tool `bin_path`, `timeout_ms`, and `config_path` overrides
+- filesystem cache (`adapters/storage`)
 - deeper config validation/error diagnostics for malformed runtime files
+- PDF output format
 
 ---
 

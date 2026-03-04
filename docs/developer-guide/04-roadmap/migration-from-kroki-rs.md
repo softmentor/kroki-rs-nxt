@@ -55,7 +55,7 @@ The following patterns and domain knowledge from kroki-rs are leveraged in the n
 - **Server middleware patterns** — auth, rate limiting, circuit breaker, metrics
 - **Browser pool management** — CDP-based headless Chrome with connection pooling
 - **Caching strategy** — SHA256-keyed filesystem cache
-- **Utility functions** — Base64/Zlib decoding, SVG-to-WebP conversion, font management
+- **Utility functions** — Base64/Zlib decoding, SVG-to-PNG/WebP conversion (via `resvg` + `image` in transport adapter), font management
 
 ---
 
@@ -94,7 +94,7 @@ Where kroki-rs code maps to in kroki-rs-nxt:
 | `src/cli/mod.rs` | `apps/cli/src/` | `kroki-cli` |
 | `src/main.rs` | Split: `apps/cli/src/main.rs` + `apps/server/src/main.rs` | `kroki-cli`, `kroki-server` |
 | `src/utils/mod.rs` (decode) | `core/sdk-rust/src/utils/decode.rs` | `kroki-core` |
-| `src/utils/image_converter.rs` | `core/sdk-rust/src/utils/image.rs` | `kroki-core` |
+| `src/utils/image_converter.rs` | `adapters/transport/src/conversion.rs` | `kroki-adapter-transport` |
 | `src/utils/font_manager.rs` | `core/sdk-rust/src/utils/fonts.rs` | `kroki-core` |
 | `src/capabilities.rs` | `core/sdk-rust/src/capabilities.rs` | `kroki-core` |
 

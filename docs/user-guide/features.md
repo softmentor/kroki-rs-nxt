@@ -24,8 +24,11 @@ HTTP API server with authentication, rate limiting, circuit breaker, and Prometh
 - **Stack**: Rust + Axum + Tower
 - **Binary**: `kroki-server`
 - **Location**: `apps/server/`
-- **Current Endpoints**: `/`, `/render`, `/capabilities`, `/playground`
+- **Standard Kroki Endpoints**: `POST /{type}/{format}`, `POST /` (JSON), `GET /{type}/{format}/{encoded}`
+- **Legacy Endpoint**: `POST /render` (JSON — retained for backward compatibility)
+- **Discovery**: `/capabilities`, `/playground`
 - **Admin Endpoints** (admin port): `/health`, `/metrics`
+- **Error Format**: RFC 7807 Problem Details (`application/problem+json`)
 
 ### Desktop (Tauri)
 
@@ -63,12 +66,7 @@ Documentation-native plugin surface for MyST-based workflows and live diagram re
 
 ## Diagram Providers
 
-Current implementation status:
-
-- Active command providers in this phase: **Graphviz**, **D2**, **Echo (bootstrap fallback)**.
-- Browser groundwork landed: **Mermaid** provider now renders through native browser CLI runtime (`mmdc`) when available.
-- BPMN provider is registered with browser runtime metadata and explicit error/status mapping; runtime renderer implementation is pending.
-- Remaining providers listed below are migration targets for later Phase 3 batches.
+All 9 production providers are implemented and active. Providers generate SVG natively; the transport layer converts to PNG/WebP post-render via `resvg`.
 
 ### Command Providers
 
@@ -76,20 +74,20 @@ Wrap CLI tools via subprocess execution:
 
 | Provider | Tool | Formats |
 |----------|------|---------|
-| Graphviz | `dot` | SVG, PNG, PDF |
-| D2 | `d2` | SVG, PNG |
-| Ditaa | `ditaa` | SVG, PNG |
-| Wavedrom | `wavedrom-cli` | SVG, PNG |
-| Excalidraw | `excalidraw` | SVG, PNG |
+| Graphviz | `dot` | SVG, PNG, WebP |
+| D2 | `d2` | SVG, PNG, WebP |
+| Ditaa | `ditaa` | PNG, SVG, WebP |
+| Wavedrom | `wavedrom-cli` | SVG, PNG, WebP |
+| Excalidraw | `excalidraw` | SVG, PNG, WebP |
 
 ### Browser Providers
 
-Evaluate JavaScript in headless Chrome via CDP:
+Evaluate JavaScript in headless Chrome via CDP (with `mmdc` CLI fallback for Mermaid):
 
 | Provider | Engine | Formats |
 |----------|--------|---------|
-| Mermaid | Mermaid.js | SVG, PNG |
-| BPMN | bpmn-js | SVG, PNG |
+| Mermaid | Mermaid.js (CDP primary, `mmdc` fallback) | SVG, PNG, WebP |
+| BPMN | bpmn-js (CDP) | SVG, PNG, WebP |
 
 ### Pipeline Providers
 
@@ -97,11 +95,23 @@ Multi-step conversion chains:
 
 | Provider | Pipeline | Formats |
 |----------|----------|---------|
-| Vega-Lite | vegalite → vega → SVG | SVG, PNG |
+| Vega | `vg2svg` | SVG, PNG, WebP |
+| Vega-Lite | `vl2vg` → `vg2svg` | SVG, PNG, WebP |
+
+### Output Format Conversion
+
+Providers always generate SVG. The transport layer handles format conversion post-render:
+
+- **SVG** — returned directly (no conversion)
+- **PNG** — SVG rasterised via `resvg`, encoded with `image` crate
+- **WebP** — SVG rasterised via `resvg`, encoded as lossless WebP
+- **PDF** — declared in `OutputFormat` enum, not yet wired (future work)
+
+Safety limits: maximum rasterisation dimensions are 8192x8192 pixels.
 
 ### Plugin Providers
 
-User-defined external tools via subprocess protocol. Configure custom diagram tools in `kroki.toml`.
+User-defined external tools via subprocess protocol. Configure custom diagram tools in `kroki.toml`. (Planned — `core/plugins` crate is scaffolded.)
 
 ---
 
@@ -111,7 +121,7 @@ User-defined external tools via subprocess protocol. Configure custom diagram to
 - **Rate Limiting**: Token-bucket algorithm (global per-IP limiter)
 - **Circuit Breaker**: Per-provider with configurable thresholds
 - **Metrics**: Prometheus export with per-provider tracking
-- **Caching**: SHA256-keyed filesystem cache
+- **Caching**: SHA256-keyed filesystem cache (planned — `adapters/storage` scaffolded)
 - **Observability**: Structured logging via `tracing`
 
 ---
