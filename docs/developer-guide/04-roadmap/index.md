@@ -95,6 +95,7 @@ Latest progress:
 
 Detailed batch plan:
 - [Phase 3 Provider Migration Backlog](#kroki-rs-nxt.developer-guide.phase3-backlog)
+- [Phase 3 Gate Checklist (P3-X mapped)](#kroki-rs-nxt.developer-guide.phase3-backlog)
 
 | Batch | Scope | Key Components |
 |-------|-------|----------------|

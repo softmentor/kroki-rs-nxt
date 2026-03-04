@@ -20,6 +20,7 @@ project:
         - title: Design
           children:
             - file: developer-guide/02-design/architecture.md
+            - file: developer-guide/02-design/ui-platform-and-playground.md
             - file: developer-guide/02-design/style-guide.md
             - file: developer-guide/02-design/repository-structure.md
             - file: developer-guide/02-design/core-contracts.md
@@ -32,6 +33,7 @@ project:
                 - file: developer-guide/02-design/adr/adr-0004-wasm-bridge.md
                 - file: developer-guide/02-design/adr/adr-0005-ratatui-cli.md
                 - file: developer-guide/02-design/adr/adr-0006-test-structure-and-taxonomy.md
+                - file: developer-guide/02-design/adr/adr-0007-lit-ui-platform-and-vite-workspace.md
         - title: Development
           children:
             - file: developer-guide/03-development/workflow.md

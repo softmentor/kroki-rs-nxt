@@ -17,6 +17,7 @@ This section tracks key architectural decisions for kroki-rs-nxt. Each ADR docum
 | [ADR-004](#kroki-rs-nxt.adr.0004) | Wasm Bridge for TypeScript | Accepted |
 | [ADR-005](#kroki-rs-nxt.adr.0005) | Ratatui CLI TUI | Accepted |
 | [ADR-006](#kroki-rs-nxt.adr.0006) | Test Structure and Taxonomy | Accepted |
+| [ADR-007](#kroki-rs-nxt.adr.0007) | Lit UI Platform with Vite Workspace and Rust Runtime Boundary | Accepted |
 
 ## ADR Format
 
