@@ -45,6 +45,8 @@ project:
         - title: Execution
           children:
             - file: developer-guide/06-execution/v010.md
+            - file: developer-guide/06-execution/track-1-feature-parity.md
+            - file: developer-guide/06-execution/track-2-devflow-v030.md
         - title: Resources
           children:
             - file: developer-guide/10-resources/references.md
